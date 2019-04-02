@@ -5,18 +5,14 @@
 #include <iostream>
 
 preview_storage::preview_storage() :
-    _current_day_number(std::time(nullptr) / 86400)
+    _center_day_number(static_cast<size_t>(std::time(nullptr) / 86400) - 1),
+    _left_daily_preview_groups(500, nullptr),
+    _right_daily_preview_groups(500, nullptr)
 {
     static_assert(_number_of_msecs_per_day % _map_duration_msecs == 0,
                   "A number of matrix per day must be an integer value");
     static_assert(_map_item_duration_msecs % 2 == 0,
                   "A map item duration must be an even number");
-
-    // TODO: Does exist another way to do it?
-    _preview_maps.reserve(_number_of_maps_per_day);
-    for (int i=0; i<_number_of_maps_per_day; ++i) {
-        _preview_maps.push_back(nullptr);
-    }
 }
 
 bool preview_storage::add_preview(int64_t start_ut_msecs,
@@ -66,22 +62,60 @@ bool preview_storage::add_preview(int64_t start_ut_msecs,
     assert(map_number >= 0 && map_number < _number_of_maps_per_day);
 
     // select the day
-    // TODO
+    std::shared_ptr<preview_group> daily_group;
+    int64_t distance = static_cast<int64_t>(day_number - _center_day_number);
+    if (distance >= 0) {
+        std::cout << "use right group" << std::endl;
+
+        const size_t index = static_cast<size_t>(distance);
+        if (index >= _right_daily_preview_groups.size()) {
+            const size_t count = index - _right_daily_preview_groups.size() + 1;
+            std::cout << "start to add " << count << std::endl;
+            for (size_t i=0; i<count; ++i) {
+                _right_daily_preview_groups.push_back(nullptr);
+            }
+        }
+        assert(index >= 0 && index < _right_daily_preview_groups.size());
+
+        daily_group = _right_daily_preview_groups.at(index);
+        if (daily_group == nullptr) {
+            daily_group = std::make_shared<preview_group>(_number_of_maps_per_day);
+            _right_daily_preview_groups[index] = daily_group;
+        }
+    } else {
+        std::cout << "use left group" << std::endl;
+
+        const size_t index = static_cast<size_t>((-1*distance) - 1);
+        if (index >= _left_daily_preview_groups.size()) {
+            const size_t count = index - _left_daily_preview_groups.size() + 1;
+            std::cout << "start to add " << count << std::endl;
+            for (size_t i=0; i<count; ++i) {
+                _left_daily_preview_groups.push_back(nullptr);
+            }
+        }
+        assert(index >= 0 && index < _left_daily_preview_groups.size());
+
+        daily_group = _left_daily_preview_groups.at(index);
+        if (daily_group == nullptr) {
+            daily_group = std::make_shared<preview_group>(_number_of_maps_per_day);
+            _left_daily_preview_groups[index] = daily_group;
+        }
+    }
+    assert(daily_group != nullptr);
 
     // select the map inside the day
-
-    // TODO: allocate one time for a day
-    auto& map = _preview_maps[map_number];
+    auto& map = daily_group->preview_maps[map_number];
     if (map == nullptr) {
         map = std::make_shared<preview_map>(_number_of_rows,
                                             _number_of_columns,
                                             _map_item_duration_msecs);
-        assert(_preview_maps.at(map_number) != nullptr);
+        assert(daily_group->preview_maps.at(map_number) != nullptr);
     }
 
     // TODO: move to map_preview
     const size_t row_number = map_item_number / _number_of_columns;
     const size_t column_number = map_item_number % _number_of_columns;
 
+    // TODO: + metainfo
     return map->add_preview(row_number, column_number);
 }
