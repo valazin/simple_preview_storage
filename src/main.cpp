@@ -30,11 +30,13 @@ int main()
     preview_storage storage;
     int64_t last_start_timestamp = 2*(60 * 60 * 24 * 1000);
     int64_t duration = 9 * 1000;
+    size_t width = 160;
+    size_t height = 80;
     for (int i=0; i<30; ++i) {
-        storage.add_preview(last_start_timestamp, duration);
+        storage.add_preview(last_start_timestamp, duration, width, height, nullptr, 0);
         last_start_timestamp += duration;
     }
-    storage.add_preview(86395 * 1000, duration);
+    storage.add_preview(86395 * 1000, duration, width, height, nullptr, 0);
 
     return  0;
 }

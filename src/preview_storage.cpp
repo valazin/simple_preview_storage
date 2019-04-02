@@ -16,22 +16,27 @@ preview_storage::preview_storage() :
 }
 
 bool preview_storage::add_preview(int64_t start_ut_msecs,
-                                  int64_t duration_msecs)
+                                  int64_t duration_msecs,
+                                  size_t width,
+                                  size_t height,
+                                  char* buff,
+                                  size_t size)
 {
     if (start_ut_msecs < 0) {
-        std::cerr << "invalid start_timestamp_msecs " << start_ut_msecs;
+        std::cerr << "invalid start_timestamp_msecs " << start_ut_msecs << std::endl;
         return false;
     }
     if (duration_msecs < 0) {
-        std::cerr << "invalid duration " << duration_msecs;
+        std::cerr << "invalid duration " << duration_msecs << std::endl;
         return false;
     }
     // TODO: don't ignore this preview
     if (duration_msecs >= _map_item_duration_msecs) {
-        std::cerr << "duration " << duration_msecs << " more than " << _map_item_duration_msecs;
+        std::cerr << "duration " << duration_msecs << " more than " << _map_item_duration_msecs << std::endl;
         return false;
     }
 
+    // calculate preview coordinates
     const size_t day_start_ut_msecs =
             start_ut_msecs % _number_of_msecs_per_day;
     const size_t map_start_ut_msecs =
@@ -108,14 +113,11 @@ bool preview_storage::add_preview(int64_t start_ut_msecs,
     if (map == nullptr) {
         map = std::make_shared<preview_map>(_number_of_rows,
                                             _number_of_columns,
-                                            _map_item_duration_msecs);
+                                            width,
+                                            height);
         assert(daily_group->preview_maps.at(map_number) != nullptr);
     }
 
-    // TODO: move to map_preview
-    const size_t row_number = map_item_number / _number_of_columns;
-    const size_t column_number = map_item_number % _number_of_columns;
-
     // TODO: + metainfo
-    return map->add_preview(row_number, column_number);
+    return map->add_preview(map_item_number, buff, size);
 }

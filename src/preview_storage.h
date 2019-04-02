@@ -12,7 +12,12 @@ class preview_storage
 public:
     preview_storage();
 
-    bool add_preview(int64_t start_ut_msecs, int64_t duration_msecs);
+    bool add_preview(int64_t start_ut_msecs,
+                     int64_t duration_msecs,
+                     size_t width,
+                     size_t height,
+                     char* buff,
+                     size_t size);
 
 private:
     struct preview_group
@@ -29,11 +34,14 @@ private:
 private:
     static constexpr size_t _number_of_rows = 5;
     static constexpr size_t _number_of_columns = 6;
-    static constexpr int64_t _number_of_items_per_map = _number_of_rows * _number_of_columns;
+    static constexpr int64_t _number_of_items_per_map =
+            _number_of_rows * _number_of_columns;
     static constexpr int64_t _map_item_duration_msecs = 10000;
-    static constexpr int64_t _map_duration_msecs = _number_of_items_per_map * _map_item_duration_msecs;
+    static constexpr int64_t _map_duration_msecs =
+            _number_of_items_per_map * _map_item_duration_msecs;
     static constexpr int64_t _number_of_msecs_per_day = 60 * 60 * 24 * 1000;
-    static constexpr int64_t _number_of_maps_per_day = _number_of_msecs_per_day / _map_duration_msecs;
+    static constexpr int64_t _number_of_maps_per_day =
+            _number_of_msecs_per_day / _map_duration_msecs;
 
     const size_t _center_day_number = 0;
     std::vector<std::shared_ptr<preview_group>> _left_daily_preview_groups;
