@@ -1,15 +1,18 @@
 #include "preview_map.h"
 
-preview_map::preview_map(int row_number,
-                         int column_number,
+#include <iostream>
+
+preview_map::preview_map(size_t number_of_rows,
+                         size_t number_of_columns,
                          int64_t item_duration_msecs) :
-    _row_number(row_number),
-    _column_number(column_number),
-    _item_duration_msecs(item_duration_msecs),
-    _total_duration_msecs(_row_number * _column_number * _item_duration_msecs)
+    _number_of_rows(number_of_rows),
+    _number_of_columns(number_of_columns),
+    _item_duration_msecs(item_duration_msecs)
 {
 }
 
-bool preview_map::add_preview(int row_index, int column_index)
+bool preview_map::add_preview(size_t row_number, size_t column_number)
 {
+    std::cout << row_number << " " << column_number << std::endl;
+    return false;
 }

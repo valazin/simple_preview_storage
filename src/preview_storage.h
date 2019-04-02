@@ -2,27 +2,31 @@
 #define PREVIEW_STORAGE_H
 
 #include <cstdint>
-#include <array>
+#include <vector>
+#include <memory>
 
-#include "daily_preview_maps.h"
+#include "preview_map.h"
 
 class preview_storage
 {
 public:
     preview_storage();
 
-    bool add_preview(int64_t start_timestamp_msecs, int64_t duration);
+    bool add_preview(int64_t start_ut_msecs, int64_t duration_msecs);
 
 private:
-    std::size_t get_day_number(int64_t timestamp_msecs) const;
-    int64_t get_day_and_normalize(int64_t timestamp_msecs) const;
 
 private:
-    const size_t current_day = 0;
+    static constexpr size_t _number_of_rows = 5;
+    static constexpr size_t _number_of_columns = 6;
+    static constexpr int64_t _map_item_duration_msecs = 10000;
+    static constexpr int64_t _map_duration_msecs = _number_of_rows * _number_of_columns * _map_item_duration_msecs;
+    static constexpr int64_t _number_of_msecs_per_day = 60 * 60 * 24 * 1000;
+    static constexpr int64_t _number_of_maps_per_day = _number_of_msecs_per_day / _map_duration_msecs;
 
-    static const std::size_t max_days = 3;
-    std::array<daily_preview_maps, max_days> _daily_preview_maps_array;
+    int64_t _current_day_number = 0;
 
+    std::vector<std::shared_ptr<preview_map>> _preview_maps;
 };
 
 #endif // PREVIEW_STORAGE_H
