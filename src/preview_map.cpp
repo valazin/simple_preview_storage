@@ -13,6 +13,6 @@ preview_map::preview_map(size_t number_of_rows,
 
 bool preview_map::add_preview(size_t row_number, size_t column_number)
 {
-    std::cout << row_number << " " << column_number << std::endl;
+//    std::cout << row_number << " " << column_number << std::endl;
     return false;
 }

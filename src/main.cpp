@@ -34,6 +34,7 @@ int main()
         storage.add_preview(last_start_timestamp, duration);
         last_start_timestamp += duration;
     }
+    storage.add_preview(86396 * 1000, duration);
 
     return  0;
 }

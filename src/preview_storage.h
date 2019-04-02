@@ -19,8 +19,9 @@ private:
 private:
     static constexpr size_t _number_of_rows = 5;
     static constexpr size_t _number_of_columns = 6;
+    static constexpr int64_t _number_of_items_per_map = _number_of_rows * _number_of_columns;
     static constexpr int64_t _map_item_duration_msecs = 10000;
-    static constexpr int64_t _map_duration_msecs = _number_of_rows * _number_of_columns * _map_item_duration_msecs;
+    static constexpr int64_t _map_duration_msecs = _number_of_items_per_map * _map_item_duration_msecs;
     static constexpr int64_t _number_of_msecs_per_day = 60 * 60 * 24 * 1000;
     static constexpr int64_t _number_of_maps_per_day = _number_of_msecs_per_day / _map_duration_msecs;
 
