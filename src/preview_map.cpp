@@ -5,14 +5,15 @@
 
 preview_map::preview_map(size_t number_of_rows,
                          size_t number_of_columns,
-                         size_t item_width,
-                         size_t item_height) :
+                         size_t preview_width,
+                         size_t preview_height) noexcept :
     c_number_of_rows(number_of_rows),
     c_number_of_columns(number_of_columns),
     c_number_of_previews(c_number_of_rows*c_number_of_columns),
-    c_item_width(item_width),
-    c_item_height(item_height),
-    c_item_size(item_width * item_height * 3),
+    c_preview_width(preview_width),
+    c_preview_height(preview_height),
+    c_preview_size(preview_width * preview_height * 3),
+    c_map_size(c_preview_size * c_number_of_previews),
     _preview_info(c_number_of_previews, preview_info())
 {
 }
@@ -29,10 +30,20 @@ bool preview_map::is_full() const noexcept
     return (_added_number_of_previews == c_number_of_previews);
 }
 
+char *preview_map::data() const noexcept
+{
+    return _buff;
+}
+
+size_t preview_map::size() const noexcept
+{
+    return c_map_size;
+}
+
 bool preview_map::insert_preview(size_t pos, char* buff, size_t size) noexcept
 {
-    if (size != c_item_size) {
-        std::cerr << "size must be " << c_item_size
+    if (size != c_preview_size) {
+        std::cerr << "size must be " << c_preview_size
                   << " but it's " << size << std::endl;
         return false;
     }
@@ -41,15 +52,14 @@ bool preview_map::insert_preview(size_t pos, char* buff, size_t size) noexcept
     const size_t column_number = pos % c_number_of_columns;
 
     if (!_buff_was_allocated) {
-        const size_t buff_size = c_number_of_previews * c_item_size;
-        _buff = new char[buff_size];
+        _buff = new char[c_map_size];
 
-        memset(_buff, 0, buff_size);
+        memset(_buff, 0, c_map_size);
 
         _buff_was_allocated = true;
     }
 
-    memcpy(_buff + pos*c_item_size, buff, size);
+    memcpy(_buff + pos*c_preview_size, buff, size);
 
     ++_added_number_of_previews;
 

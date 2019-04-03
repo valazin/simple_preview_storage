@@ -42,7 +42,7 @@ int main()
     char* white_data = new char[data_size];
     memset(white_data, 255, data_size);
 
-    for (int i=0; i<2*288; ++i) {
+    for (int i=0; i<600; ++i) {
         char* data = nullptr;
         if (i%2) {
             data = black_data;

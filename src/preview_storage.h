@@ -10,7 +10,7 @@
 class preview_storage
 {
 public:
-    explicit preview_storage(const std::string& dir_path);
+    explicit preview_storage(const std::string& dir_path) noexcept;
 
     bool add_preview(int64_t start_ut_msecs,
                      int64_t duration_msecs,
@@ -34,11 +34,11 @@ private:
 private:
     static constexpr size_t c_number_of_rows = 5;
     static constexpr size_t c_number_of_columns = 6;
-    static constexpr int64_t c_number_of_items_per_map =
+    static constexpr int64_t c_number_of_previews_per_map =
             c_number_of_rows * c_number_of_columns;
-    static constexpr int64_t c_map_item_duration_msecs = 10000;
+    static constexpr int64_t c_preview_duration_msecs = 10000;
     static constexpr int64_t c_map_duration_msecs =
-            c_number_of_items_per_map * c_map_item_duration_msecs;
+            c_number_of_previews_per_map * c_preview_duration_msecs;
     static constexpr int64_t c_number_of_msecs_per_day = 60 * 60 * 24 * 1000;
     static constexpr int64_t c_number_of_maps_per_day =
             c_number_of_msecs_per_day / c_map_duration_msecs;

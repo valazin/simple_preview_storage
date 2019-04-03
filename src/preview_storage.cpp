@@ -1,10 +1,16 @@
 ﻿#include "preview_storage.h"
 
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include <ctime>
 #include <cassert>
 #include <iostream>
 
-preview_storage::preview_storage(const std::string &dir_path) :
+#include "filesystem.h"
+
+preview_storage::preview_storage(const std::string &dir_path) noexcept :
     c_dir_path(dir_path),
     c_center_day_number(static_cast<size_t>(std::time(nullptr) / 86400) - 1),
     _left_daily_preview_groups(500, nullptr),
@@ -12,8 +18,8 @@ preview_storage::preview_storage(const std::string &dir_path) :
 {
     static_assert(c_number_of_msecs_per_day % c_map_duration_msecs == 0,
                   "A number of matrix per day must be an integer value");
-    static_assert(c_map_item_duration_msecs % 2 == 0,
-                  "A map item duration must be an even number");
+    static_assert(c_preview_duration_msecs % 2 == 0,
+                  "A map preview duration must be an even number");
 }
 
 bool preview_storage::add_preview(int64_t start_ut_msecs,
@@ -31,9 +37,9 @@ bool preview_storage::add_preview(int64_t start_ut_msecs,
         std::cerr << "invalid duration " << duration_msecs << std::endl;
         return false;
     }
-    if (duration_msecs >= c_map_item_duration_msecs) {
+    if (duration_msecs >= c_preview_duration_msecs) {
         std::cout << "warning: duration " << duration_msecs
-                  << " more than " << c_map_item_duration_msecs << std::endl;
+                  << " more than " << c_preview_duration_msecs << std::endl;
     }
 
     // calculate preview coordinates
@@ -41,28 +47,28 @@ bool preview_storage::add_preview(int64_t start_ut_msecs,
             start_ut_msecs % c_number_of_msecs_per_day;
     const size_t map_start_ut_msecs =
             day_start_ut_msecs % c_map_duration_msecs;
-    const size_t map_item_start_ut_msecs =
-            map_start_ut_msecs % c_map_item_duration_msecs;
+    const size_t map_preview_start_ut_msecs =
+            map_start_ut_msecs % c_preview_duration_msecs;
 
     size_t day_number = static_cast<size_t>(
                 start_ut_msecs / c_number_of_msecs_per_day);
     size_t map_number = day_start_ut_msecs / c_map_duration_msecs;
-    size_t map_item_number = static_cast<size_t>(
-                map_start_ut_msecs / c_map_item_duration_msecs);
+    size_t preview_number = static_cast<size_t>(
+                map_start_ut_msecs / c_preview_duration_msecs);
 
-    if (map_item_start_ut_msecs > (c_map_item_duration_msecs / 2)) {
-        ++map_item_number;
+    if (map_preview_start_ut_msecs > (c_preview_duration_msecs / 2)) {
+        ++preview_number;
     }
-    if (map_item_number + 1 > c_number_of_items_per_map) {
+    if (preview_number + 1 > c_number_of_previews_per_map) {
         ++map_number;
-        map_item_number = 0;
+        preview_number = 0;
         if (map_number + 1 > c_number_of_maps_per_day) {
             ++day_number;
             map_number = 0;
         }
     }
 
-    std::cout << day_number << " " << map_number << " " << map_item_number << std::endl;
+    std::cout << day_number << " " << map_number << " " << preview_number << std::endl;
 
     assert(map_number >= 0 && map_number < c_number_of_maps_per_day);
 
@@ -119,10 +125,42 @@ bool preview_storage::add_preview(int64_t start_ut_msecs,
     }
 
     // TODO: + metainfo
-    if (map->insert_preview(map_item_number, buff, size)) {
+    // TODO: use weight
+    if (map->insert_preview(preview_number, buff, size)) {
         if (map->is_full()) {
-            // TODO: save to file
             std::cout << "map " << map_number << " is full" << std::endl;
+            const std::string preview_dir_path =
+                    c_dir_path + "/" + std::to_string(day_number);
+            if (filesystem::dir_is_exist(preview_dir_path)
+                    || filesystem::create_directory(preview_dir_path)) {
+                const std::string preview_file_path =
+                        preview_dir_path+ "/" + std::to_string(map_number);
+
+                std::cout << "saving map " << map_number
+                          << " to file " << preview_file_path << std::endl;
+                int fd = open(preview_file_path.data(),
+                              O_WRONLY | O_CREAT | O_TRUNC,
+                              S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+                if (fd != -1) {
+                    ssize_t written_size = write(fd, map->data(), map->size());
+                    if (written_size != -1) {
+                        std::cout << "success save map " << map_number
+                                  << " to file " << preview_file_path << std::endl;
+
+                        // TODO: if a written size less than a preview size
+
+                        daily_group->preview_maps[map_number] = nullptr;
+                    } else {
+                        std::cerr << "error save map " << map_number
+                                  << " to file " << preview_file_path << std::endl;
+                        perror("write map to file");
+                    }
+                }
+            } else {
+                std::cerr << "couldn't save map " << map_number
+                          << " create dir error " << preview_dir_path << std::endl;
+            }
         }
         return true;
     } else {
