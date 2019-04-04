@@ -7,14 +7,14 @@ preview_map::preview_map(size_t number_of_rows,
                          size_t number_of_columns,
                          size_t preview_width,
                          size_t preview_height) noexcept :
-    c_number_of_rows(number_of_rows),
-    c_number_of_columns(number_of_columns),
-    c_number_of_previews(c_number_of_rows*c_number_of_columns),
-    c_preview_width(preview_width),
-    c_preview_height(preview_height),
-    c_preview_size(preview_width * preview_height * 3),
-    c_map_size(c_preview_size * c_number_of_previews),
-    _preview_info(c_number_of_previews, preview_info())
+    _rows(number_of_rows),
+    _cols(number_of_columns),
+    _number_of_previews(_rows*_cols),
+    _preview_width(preview_width),
+    _preview_height(preview_height),
+    _preview_size(preview_width * preview_height * 3),
+    _map_size(_preview_size * _number_of_previews),
+    _preview_info(_number_of_previews, preview_info())
 {
 }
 
@@ -27,7 +27,7 @@ preview_map::~preview_map()
 
 bool preview_map::is_full() const noexcept
 {
-    return (_added_number_of_previews == c_number_of_previews);
+    return (_added_number_of_previews == _number_of_previews);
 }
 
 char *preview_map::data() const noexcept
@@ -37,29 +37,47 @@ char *preview_map::data() const noexcept
 
 size_t preview_map::size() const noexcept
 {
-    return c_map_size;
+    return _map_size;
 }
 
-bool preview_map::insert_preview(size_t pos, char* buff, size_t size) noexcept
+size_t preview_map::width_px() const
 {
-    if (size != c_preview_size) {
-        std::cerr << "size must be " << c_preview_size
+    return _cols * _preview_width;
+}
+
+size_t preview_map::height_px() const
+{
+    return _rows * _preview_height;
+}
+
+bool preview_map::insert_preview(size_t number, char* buff, size_t size) noexcept
+{
+    if (size != _preview_size) {
+        std::cerr << "size must be " << _preview_size
                   << " but it's " << size << std::endl;
         return false;
     }
 
-    const size_t row_number = pos / c_number_of_columns;
-    const size_t column_number = pos % c_number_of_columns;
+    const size_t row = number / _cols;
+    const size_t col = number % _cols;
 
     if (!_buff_was_allocated) {
-        _buff = new char[c_map_size];
+        _buff = new char[_map_size];
 
-        memset(_buff, 0, c_map_size);
+        memset(_buff, 0, _map_size);
 
         _buff_was_allocated = true;
     }
 
-    memcpy(_buff + pos*c_preview_size, buff, size);
+    size_t pos = (3 * col * _preview_width);
+    if (row > 0) {
+        pos += 3 * row * _cols * _preview_width * _preview_height;
+    }
+
+    for (size_t i=0; i<_preview_height; ++i) {
+        memcpy(_buff + pos, buff + (3 * i * _preview_width), 3 * _preview_width);
+        pos += 3 * _cols * _preview_width;
+    }
 
     ++_added_number_of_previews;
 

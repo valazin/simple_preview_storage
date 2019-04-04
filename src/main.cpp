@@ -1,6 +1,8 @@
 #include <iostream>
 #include <cstring>
 
+#include <opencv2/imgcodecs.hpp>
+
 #include "preview_storage.h"
 
 void print_map(int row, int column, int item_duration)
@@ -30,29 +32,23 @@ int main()
 
     preview_storage storage("/tmp/preview-storage");
     int64_t start_ut_msecs = 2*(60 * 60 * 24 * 1000);
-    int64_t duration_msecs = 9 * 1000;
-    size_t width = 160;
-    size_t height = 80;
+    const int64_t duration_msecs = 10 * 1000;
+    const size_t width = 160;
+    const size_t height = 90;
+    const size_t preview_size = 3*height*width;
 
-    const size_t data_size = width*height*3;
+    const int color_step = 255 / 30;
 
-    char* black_data = new char[data_size];
-    memset(black_data, 0, data_size);
+    for (int i=0; i<30000; ++i) {
+        char* data = new char[preview_size];
+        memset(data, color_step*(i+1), preview_size);
 
-    char* white_data = new char[data_size];
-    memset(white_data, 255, data_size);
+        storage.add_preview("id", start_ut_msecs, duration_msecs, width, height, data, preview_size);
 
-    for (int i=0; i<600; ++i) {
-        char* data = nullptr;
-        if (i%2) {
-            data = black_data;
-        } else {
-            data = white_data;
-        }
-        storage.add_preview(start_ut_msecs, duration_msecs, width, height, data, data_size);
+        delete[] data;
+
         start_ut_msecs += duration_msecs;
     }
-    storage.add_preview(86395 * 1000, duration_msecs, width, height, white_data, data_size);
 
     return  0;
 }

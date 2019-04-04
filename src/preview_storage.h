@@ -12,7 +12,8 @@ class preview_storage
 public:
     explicit preview_storage(const std::string& dir_path) noexcept;
 
-    bool add_preview(int64_t start_ut_msecs,
+    bool add_preview(const std::string& id,
+                     int64_t start_ut_msecs,
                      int64_t duration_msecs,
                      size_t width,
                      size_t height,
@@ -32,18 +33,31 @@ private:
     };
 
 private:
-    static constexpr size_t c_number_of_rows = 5;
-    static constexpr size_t c_number_of_columns = 6;
-    static constexpr int64_t c_number_of_previews_per_map =
-            c_number_of_rows * c_number_of_columns;
-    static constexpr int64_t c_preview_duration_msecs = 10000;
-    static constexpr int64_t c_map_duration_msecs =
-            c_number_of_previews_per_map * c_preview_duration_msecs;
-    static constexpr int64_t c_number_of_msecs_per_day = 60 * 60 * 24 * 1000;
-    static constexpr int64_t c_number_of_maps_per_day =
-            c_number_of_msecs_per_day / c_map_duration_msecs;
+    bool save_preview_map(const std::shared_ptr<preview_map>& map,
+                          const std::string& file_path) const noexcept;
 
-    const std::string c_dir_path;
+    bool create_preview_dir(const std::string& id,
+                            size_t day_number) const noexcept;
+
+    std::string preview_dir_path(const std::string& id,
+                                 size_t day_number) const noexcept;
+    std::string preview_file_name(size_t map_number) const noexcept;
+    std::string preview_file_path(const std::string& id,
+                                  size_t day_number,
+                                  size_t map_number) const noexcept;
+
+private:
+    static constexpr size_t _rows = 5;
+    static constexpr size_t _cols = 6;
+    static constexpr int64_t _number_of_previews_per_map = _rows * _cols;
+    static constexpr int64_t _preview_duration_msecs = 10000;
+    static constexpr int64_t _map_duration_msecs =
+            _number_of_previews_per_map * _preview_duration_msecs;
+    static constexpr int64_t _number_of_msecs_per_day = 60 * 60 * 24 * 1000;
+    static constexpr int64_t _number_of_maps_per_day =
+            _number_of_msecs_per_day / _map_duration_msecs;
+
+    const std::string _work_dir_path;
 
     const size_t c_center_day_number = 0;
     std::vector<std::shared_ptr<preview_group>> _left_daily_preview_groups;

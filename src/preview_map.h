@@ -21,16 +21,19 @@ public:
     char* data() const noexcept;
     size_t size() const noexcept;
 
-    bool insert_preview(size_t pos, char* buff, size_t size) noexcept;
+    size_t width_px() const;
+    size_t height_px() const;
+
+    bool insert_preview(size_t number, char* buff, size_t size) noexcept;
 
 private:
-    const size_t c_number_of_rows = 0;
-    const size_t c_number_of_columns = 0;
-    const size_t c_number_of_previews = 0;
-    const size_t c_preview_width = 0;
-    const size_t c_preview_height = 0;
-    const size_t c_preview_size = 0;
-    const size_t c_map_size = 0;
+    const size_t _rows = 0;
+    const size_t _cols = 0;
+    const size_t _number_of_previews = 0;
+    const size_t _preview_width = 0;
+    const size_t _preview_height = 0;
+    const size_t _preview_size = 0;
+    const size_t _map_size = 0;
 
     size_t _added_number_of_previews = 0;
     std::vector<preview_info> _preview_info;

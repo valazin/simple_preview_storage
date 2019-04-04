@@ -32,7 +32,8 @@ target_include_directories(${APP_NAME} PRIVATE ${SRC_DIRS})
 ###3rd party libraries
 set(LIBRARIES
     "pthread"
-    "glog"
+    "opencv_core"
+    "opencv_imgcodecs"
     )
 target_link_libraries(${APP_NAME} ${LIBRARIES})
 
