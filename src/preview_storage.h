@@ -5,6 +5,8 @@
 #include <vector>
 #include <memory>
 
+#include "http/buffer.h"
+
 #include "preview_map.h"
 
 class preview_storage
@@ -17,8 +19,7 @@ public:
                      int64_t duration_msecs,
                      size_t width,
                      size_t height,
-                     char* buff,
-                     size_t size) noexcept;
+                     std::shared_ptr<http::buffer> buff) noexcept;
 
 private:
     struct preview_group

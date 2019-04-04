@@ -50,8 +50,12 @@ size_t preview_map::height_px() const
     return _rows * _preview_height;
 }
 
-bool preview_map::insert_preview(size_t number, char* buff, size_t size) noexcept
+bool preview_map::insert_preview(size_t number,
+                                 std::shared_ptr<http::buffer> buff) noexcept
 {
+    const char* data = buff->data();
+    const size_t size = buff->size();
+
     if (size != _preview_size) {
         std::cerr << "size must be " << _preview_size
                   << " but it's " << size << std::endl;
@@ -75,7 +79,7 @@ bool preview_map::insert_preview(size_t number, char* buff, size_t size) noexcep
     }
 
     for (size_t i=0; i<_preview_height; ++i) {
-        memcpy(_buff + pos, buff + (3 * i * _preview_width), 3 * _preview_width);
+        memcpy(_buff + pos, data + (3 * i * _preview_width), 3 * _preview_width);
         pos += 3 * _cols * _preview_width;
     }
 

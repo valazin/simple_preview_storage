@@ -24,12 +24,12 @@ preview_storage::preview_storage(const std::string &dir_path) noexcept :
                   "A map preview duration must be an even number");
 }
 
-bool preview_storage::add_preview(const std::string &id, int64_t start_ut_msecs,
+bool preview_storage::add_preview(const std::string &id,
+                                  int64_t start_ut_msecs,
                                   int64_t duration_msecs,
                                   size_t width,
                                   size_t height,
-                                  char* buff,
-                                  size_t size) noexcept
+                                  std::shared_ptr<http::buffer> buff) noexcept
 {
     if (start_ut_msecs < 0) {
         std::cerr << "invalid start_timestamp_msecs " << start_ut_msecs << std::endl;
@@ -128,7 +128,7 @@ bool preview_storage::add_preview(const std::string &id, int64_t start_ut_msecs,
 
     // TODO: + metainfo
     // TODO: use weight
-    if (map->insert_preview(preview_number, buff, size)) {
+    if (map->insert_preview(preview_number, buff)) {
         if (map->is_full()) {
             std::cout << "map " << map_number << " is full" << std::endl;
             if (create_preview_dir(id, day_number)) {
