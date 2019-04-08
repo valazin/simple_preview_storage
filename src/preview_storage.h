@@ -25,12 +25,16 @@ private:
     struct preview_group
     {
         preview_group(size_t size) :
-            preview_maps(size, nullptr)
+            preview_10secs_maps(size, nullptr),
+            preview_1min_maps(48, nullptr),
+            preview_1hour_maps(1, nullptr)
         {
         }
 
         // TODO: test without shared_ptr
-        std::vector<std::shared_ptr<preview_map>> preview_maps;
+        std::vector<std::shared_ptr<preview_map>> preview_10secs_maps;
+        std::vector<std::shared_ptr<preview_map>> preview_1min_maps;
+        std::vector<std::shared_ptr<preview_map>> preview_1hour_maps;
     };
 
 private:
@@ -60,7 +64,7 @@ private:
 
     const std::string _work_dir_path;
 
-    const size_t c_center_day_number = 0;
+    const size_t _center_day_number = 0;
     std::vector<std::shared_ptr<preview_group>> _left_daily_preview_groups;
     std::vector<std::shared_ptr<preview_group>> _right_daily_preview_groups;
 };

@@ -9,12 +9,13 @@
 #include <iostream>
 
 #include <opencv2/imgcodecs.hpp>
+#include <opencv2/imgproc.hpp>
 
 #include "filesystem.h"
 
 preview_storage::preview_storage(const std::string &dir_path) noexcept :
     _work_dir_path(dir_path),
-    c_center_day_number(static_cast<size_t>(std::time(nullptr) / 86400) - 1),
+    _center_day_number(static_cast<size_t>(std::time(nullptr) / 86400) - 1),
     _left_daily_preview_groups(500, nullptr),
     _right_daily_preview_groups(500, nullptr)
 {
@@ -23,6 +24,8 @@ preview_storage::preview_storage(const std::string &dir_path) noexcept :
     static_assert(_preview_duration_msecs % 2 == 0,
                   "A map preview duration must be an even number");
 }
+
+// TODO: use guid
 
 bool preview_storage::add_preview(const std::string &id,
                                   int64_t start_ut_msecs,
@@ -76,7 +79,7 @@ bool preview_storage::add_preview(const std::string &id,
 
     // select the day
     std::shared_ptr<preview_group> daily_group;
-    int64_t distance = static_cast<int64_t>(day_number - c_center_day_number);
+    int64_t distance = static_cast<int64_t>(day_number - _center_day_number);
     if (distance >= 0) {
         std::cout << "use right daily group" << std::endl;
 
@@ -117,35 +120,106 @@ bool preview_storage::add_preview(const std::string &id,
     assert(daily_group != nullptr);
 
     // select the map inside the day
-    auto& map = daily_group->preview_maps[map_number];
+    auto& map = daily_group->preview_10secs_maps[map_number];
     if (map == nullptr) {
         map = std::make_shared<preview_map>(_rows,
                                             _cols,
                                             width,
                                             height);
-        assert(daily_group->preview_maps.at(map_number) != nullptr);
+        assert(daily_group->preview_10secs_maps.at(map_number) != nullptr);
     }
 
     // TODO: + metainfo
     // TODO: use weight
-    if (map->insert_preview(preview_number, buff)) {
+    if (map->insert_preview(preview_number, buff->data(), buff->size())) {
         if (map->is_full()) {
-            std::cout << "map " << map_number << " is full" << std::endl;
+            std::cout << "10sec map " << map_number << " is full" << std::endl;
             if (create_preview_dir(id, day_number)) {
-                const std::string file_path = preview_file_path(id, day_number, map_number);
-                std::cout << "saving map " << file_path << std::endl;
-                if (save_preview_map(map, file_path)) {
-                    std::cout << "success save map " << file_path << std::endl;
-                    daily_group->preview_maps[map_number] = nullptr;
+                const std::string path = preview_file_path(id, day_number, map_number) + "_10sec";
+                if (save_preview_map(map, path)) {
+                    std::cout << "success save 10sec map " << path << std::endl;
+                    daily_group->preview_10secs_maps[map_number] = nullptr;
                 } else {
-                    std::cerr << "error save map " << file_path << std::endl;
+                    std::cerr << "error save 10sec map " << path << std::endl;
                 }
             } else {
                 std::cerr << "couldn't save map error create dir " << std::endl;
             }
         }
+
+        char* smaller_buff = nullptr;
+        size_t smaller_buff_size = 0;
+
+        // FIXME please
+        size_t preview_number_in_day = 30*map_number + preview_number;
+        // 1min
+        if (preview_number_in_day % 6 == 0) {
+            size_t mn = map_number / 6;
+            size_t pn = (preview_number_in_day / 6) % 30;
+
+            auto& map_1min = daily_group->preview_1min_maps[mn];
+            if (map_1min == nullptr) {
+                map_1min = std::make_shared<preview_map>(5,6, width/2, height/2);
+            }
+            assert(map_1min != nullptr);
+
+            cv::Mat in(static_cast<int>(height),
+                       static_cast<int>(width),
+                       CV_8UC3,
+                       const_cast<char*>(buff->data()));
+            cv::Mat out;
+
+            cv::Size size;
+            size.width = static_cast<int>(width/2);
+            size.height = static_cast<int>(height/2);
+            cv::resize(in, out, size);
+
+            smaller_buff = reinterpret_cast<char*>(out.data);
+            smaller_buff_size = out.total() * out.elemSize();
+
+            if (map_1min->insert_preview(pn, smaller_buff, smaller_buff_size)) {
+                if (map_1min->is_full()) {
+                    std::cout << "1min map " << mn << " is full";
+                    const std::string path = preview_file_path(id, day_number, mn) + "_1min";
+                    if (save_preview_map(map_1min, path)) {
+                        std::cout << "success save 1min map " << path << std::endl;
+                    } else {
+                        std::cerr << "error save 1min map " << path << std::endl;
+                    }
+                }
+            } else {
+                // TODO:
+            }
+        }
+
+        // 1hour
+        if (preview_number_in_day % 360 == 0) {
+            size_t mn = map_number / 288;
+            size_t pn = (preview_number_in_day / 360) % 24;
+
+            auto& map_1hour = daily_group->preview_1hour_maps[mn];
+            if (map_1hour == nullptr) {
+                map_1hour = std::make_shared<preview_map>(4,6, width/2, height/2);
+            }
+            assert(map_1hour != nullptr);
+
+            if (map_1hour->insert_preview(pn, smaller_buff, smaller_buff_size)) {
+                if (map_1hour->is_full()) {
+                    std::cout << "1hour map " << mn << " is full";
+                    const std::string path = preview_file_path(id, day_number, mn) + "_1hour";
+                    if (save_preview_map(map_1hour, path)) {
+                        std::cout << "success save 1hour map " << path << std::endl;
+                    } else {
+                        std::cerr << "error save 1hour map " << path << std::endl;
+                    }
+                }
+            }
+        }
+        /////
+
         return true;
     } else {
+        // TODO: log
         return false;
     }
 }
@@ -222,4 +296,3 @@ std::string preview_storage::preview_file_path(const std::string &id,
 {
     return preview_dir_path(id, day_number) + "/" + preview_file_name(map_number);
 }
-

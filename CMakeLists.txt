@@ -35,6 +35,7 @@ set(LIBRARIES
     "glog"
     "opencv_core"
     "opencv_imgcodecs"
+    "opencv_imgproc"
     )
 target_link_libraries(${APP_NAME} ${LIBRARIES})
 

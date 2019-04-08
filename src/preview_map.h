@@ -27,7 +27,9 @@ public:
     size_t width_px() const;
     size_t height_px() const;
 
-    bool insert_preview(size_t number, std::shared_ptr<http::buffer> buff) noexcept;
+    bool insert_preview(size_t number,
+                        const char* buff,
+                        std::size_t size) noexcept;
 
 private:
     const size_t _rows = 0;
