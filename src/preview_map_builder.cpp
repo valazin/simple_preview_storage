@@ -153,6 +153,8 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                 format.maps.erase(search);
             }
         }
+    } else {
+        // TODO: increase count added items. maybe move this counter to private_map
     }
 
     // TODO: return result
