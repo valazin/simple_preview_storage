@@ -4,10 +4,10 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
-
-#include "http/buffer.h"
+#include <unordered_map>
 
 #include "preview_map.h"
+#include "preview_map_builder.h"
 
 class preview_storage
 {
@@ -19,23 +19,8 @@ public:
                      int64_t duration_msecs,
                      size_t width,
                      size_t height,
-                     std::shared_ptr<http::buffer> buff) noexcept;
-
-private:
-    struct preview_group
-    {
-        preview_group(size_t size) :
-            preview_10secs_maps(size, nullptr),
-            preview_1min_maps(48, nullptr),
-            preview_1hour_maps(1, nullptr)
-        {
-        }
-
-        // TODO: test without shared_ptr
-        std::vector<std::shared_ptr<preview_map>> preview_10secs_maps;
-        std::vector<std::shared_ptr<preview_map>> preview_1min_maps;
-        std::vector<std::shared_ptr<preview_map>> preview_1hour_maps;
-    };
+                     const char* data,
+                     size_t data_size) noexcept;
 
 private:
     bool save_preview_map(const std::shared_ptr<preview_map>& map,
@@ -52,21 +37,8 @@ private:
                                   size_t map_number) const noexcept;
 
 private:
-    static constexpr size_t _rows = 5;
-    static constexpr size_t _cols = 6;
-    static constexpr int64_t _number_of_previews_per_map = _rows * _cols;
-    static constexpr int64_t _preview_duration_msecs = 10000;
-    static constexpr int64_t _map_duration_msecs =
-            _number_of_previews_per_map * _preview_duration_msecs;
-    static constexpr int64_t _number_of_msecs_per_day = 60 * 60 * 24 * 1000;
-    static constexpr int64_t _number_of_maps_per_day =
-            _number_of_msecs_per_day / _map_duration_msecs;
-
     const std::string _work_dir_path;
-
-    const size_t _center_day_number = 0;
-    std::vector<std::shared_ptr<preview_group>> _left_daily_preview_groups;
-    std::vector<std::shared_ptr<preview_group>> _right_daily_preview_groups;
+    std::unordered_map<std::string, std::shared_ptr<preview_map_builder>> _builders;
 };
 
 #endif // PREVIEW_STORAGE_H

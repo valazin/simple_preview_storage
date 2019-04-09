@@ -9,222 +9,59 @@
 #include <iostream>
 
 #include <opencv2/imgcodecs.hpp>
-#include <opencv2/imgproc.hpp>
 
 #include "filesystem.h"
 
 preview_storage::preview_storage(const std::string &dir_path) noexcept :
-    _work_dir_path(dir_path),
-    _center_day_number(static_cast<size_t>(std::time(nullptr) / 86400) - 1),
-    _left_daily_preview_groups(500, nullptr),
-    _right_daily_preview_groups(500, nullptr)
+    _work_dir_path(dir_path)
 {
-    static_assert(_number_of_msecs_per_day % _map_duration_msecs == 0,
-                  "A number of matrix per day must be an integer value");
-    static_assert(_preview_duration_msecs % 2 == 0,
-                  "A map preview duration must be an even number");
 }
-
-// TODO: use guid
 
 bool preview_storage::add_preview(const std::string &id,
                                   int64_t start_ut_msecs,
                                   int64_t duration_msecs,
                                   size_t width,
                                   size_t height,
-                                  std::shared_ptr<http::buffer> buff) noexcept
+                                  const char *data,
+                                  size_t data_size) noexcept
 {
-    if (start_ut_msecs < 0) {
-        std::cerr << "invalid start_timestamp_msecs " << start_ut_msecs << std::endl;
-        return false;
-    }
-    if (duration_msecs < 0) {
-        std::cerr << "invalid duration " << duration_msecs << std::endl;
-        return false;
-    }
-    if (duration_msecs > _preview_duration_msecs) {
-        std::cout << "warning: duration " << duration_msecs
-                  << " more than " << _preview_duration_msecs << std::endl;
-    }
+    std::shared_ptr<preview_map_builder> builder;
 
-    // calculate preview coordinates
-    const size_t day_start_ut_msecs =
-            start_ut_msecs % _number_of_msecs_per_day;
-    const size_t map_start_ut_msecs =
-            day_start_ut_msecs % _map_duration_msecs;
-    const size_t map_preview_start_ut_msecs =
-            map_start_ut_msecs % _preview_duration_msecs;
-
-    size_t day_number = static_cast<size_t>(
-                start_ut_msecs / _number_of_msecs_per_day);
-    size_t map_number = day_start_ut_msecs / _map_duration_msecs;
-    size_t preview_number = static_cast<size_t>(
-                map_start_ut_msecs / _preview_duration_msecs);
-
-    if (map_preview_start_ut_msecs > (_preview_duration_msecs / 2)) {
-        ++preview_number;
-    }
-    if (preview_number + 1 > _number_of_previews_per_map) {
-        ++map_number;
-        preview_number = 0;
-        if (map_number + 1 > _number_of_maps_per_day) {
-            ++day_number;
-            map_number = 0;
-        }
-    }
-
-    std::cout << day_number << " " << map_number << " " << preview_number << std::endl;
-
-    assert(map_number >= 0 && map_number < _number_of_maps_per_day);
-
-    // select the day
-    std::shared_ptr<preview_group> daily_group;
-    int64_t distance = static_cast<int64_t>(day_number - _center_day_number);
-    if (distance >= 0) {
-        std::cout << "use right daily group" << std::endl;
-
-        const size_t index = static_cast<size_t>(distance);
-        if (index >= _right_daily_preview_groups.size()) {
-            const size_t count = index - _right_daily_preview_groups.size() + 1;
-            std::cout << "start to add " << count << std::endl;
-            for (size_t i=0; i<count; ++i) {
-                _right_daily_preview_groups.push_back(nullptr);
-            }
-        }
-        assert(index >= 0 && index < _right_daily_preview_groups.size());
-
-        daily_group = _right_daily_preview_groups.at(index);
-        if (daily_group == nullptr) {
-            daily_group = std::make_shared<preview_group>(_number_of_maps_per_day);
-            _right_daily_preview_groups[index] = daily_group;
-        }
+    auto search = _builders.find(id);
+    if (search != _builders.end()) {
+        builder = search->second;
     } else {
-        std::cout << "use left daily group" << std::endl;
+        const preview_map_builder::map_format main_10sec{5,6,10000,320,180};
+        const preview_map_builder::map_format sub_1min{5,6,6*10000,160,90,};
+        const preview_map_builder::map_format sub_1hour{4,6,360*10000,160,90};
+        const std::vector<preview_map_builder::map_format> sub_formats = {
+            sub_1min,
+            sub_1hour
+        };
+        preview_map_builder::task task {main_10sec, sub_formats};
 
-        const size_t index = static_cast<size_t>((-1*distance) - 1);
-        if (index >= _left_daily_preview_groups.size()) {
-            const size_t count = index - _left_daily_preview_groups.size() + 1;
-            std::cout << "start to add " << count << std::endl;
-            for (size_t i=0; i<count; ++i) {
-                _left_daily_preview_groups.push_back(nullptr);
-            }
-        }
-        assert(index >= 0 && index < _left_daily_preview_groups.size());
+        builder = std::make_shared<preview_map_builder>(task);
+        builder->MapBuildedHandler = [this](
+                int64_t start_ut_msecs,
+                const preview_map_builder::map_format& format,
+                std::shared_ptr<preview_map> map) {
 
-        daily_group = _left_daily_preview_groups.at(index);
-        if (daily_group == nullptr) {
-            daily_group = std::make_shared<preview_group>(_number_of_maps_per_day);
-            _left_daily_preview_groups[index] = daily_group;
-        }
-    }
-    assert(daily_group != nullptr);
+        };
 
-    // select the map inside the day
-    auto& map = daily_group->preview_10secs_maps[map_number];
-    if (map == nullptr) {
-        map = std::make_shared<preview_map>(_rows,
-                                            _cols,
-                                            width,
-                                            height);
-        assert(daily_group->preview_10secs_maps.at(map_number) != nullptr);
+        _builders.insert({id, builder});
     }
 
-    // TODO: + metainfo
-    // TODO: use weight
-    if (map->insert_preview(preview_number, buff->data(), buff->size())) {
-        if (map->is_full()) {
-            std::cout << "10sec map " << map_number << " is full" << std::endl;
-            if (create_preview_dir(id, day_number)) {
-                const std::string path = preview_file_path(id, day_number, map_number) + "_10sec";
-                if (save_preview_map(map, path)) {
-                    std::cout << "success save 10sec map " << path << std::endl;
-                    daily_group->preview_10secs_maps[map_number] = nullptr;
-                } else {
-                    std::cerr << "error save 10sec map " << path << std::endl;
-                }
-            } else {
-                std::cerr << "couldn't save map error create dir " << std::endl;
-            }
-        }
+    builder->insert(start_ut_msecs,
+                    duration_msecs,
+                    width, height,
+                    data,
+                    data_size);
 
-        char* smaller_buff = nullptr;
-        size_t smaller_buff_size = 0;
-
-        // FIXME please
-        size_t preview_number_in_day = 30*map_number + preview_number;
-        // 1min
-        if (preview_number_in_day % 6 == 0) {
-            size_t mn = map_number / 6;
-            size_t pn = (preview_number_in_day / 6) % 30;
-
-            auto& map_1min = daily_group->preview_1min_maps[mn];
-            if (map_1min == nullptr) {
-                map_1min = std::make_shared<preview_map>(5,6, width/2, height/2);
-            }
-            assert(map_1min != nullptr);
-
-            cv::Mat in(static_cast<int>(height),
-                       static_cast<int>(width),
-                       CV_8UC3,
-                       const_cast<char*>(buff->data()));
-            cv::Mat out;
-
-            cv::Size size;
-            size.width = static_cast<int>(width/2);
-            size.height = static_cast<int>(height/2);
-            cv::resize(in, out, size);
-
-            smaller_buff = reinterpret_cast<char*>(out.data);
-            smaller_buff_size = out.total() * out.elemSize();
-
-            if (map_1min->insert_preview(pn, smaller_buff, smaller_buff_size)) {
-                if (map_1min->is_full()) {
-                    std::cout << "1min map " << mn << " is full";
-                    const std::string path = preview_file_path(id, day_number, mn) + "_1min";
-                    if (save_preview_map(map_1min, path)) {
-                        std::cout << "success save 1min map " << path << std::endl;
-                    } else {
-                        std::cerr << "error save 1min map " << path << std::endl;
-                    }
-                }
-            } else {
-                // TODO:
-            }
-        }
-
-        // 1hour
-        if (preview_number_in_day % 360 == 0) {
-            size_t mn = map_number / 288;
-            size_t pn = (preview_number_in_day / 360) % 24;
-
-            auto& map_1hour = daily_group->preview_1hour_maps[mn];
-            if (map_1hour == nullptr) {
-                map_1hour = std::make_shared<preview_map>(4,6, width/2, height/2);
-            }
-            assert(map_1hour != nullptr);
-
-            if (map_1hour->insert_preview(pn, smaller_buff, smaller_buff_size)) {
-                if (map_1hour->is_full()) {
-                    std::cout << "1hour map " << mn << " is full";
-                    const std::string path = preview_file_path(id, day_number, mn) + "_1hour";
-                    if (save_preview_map(map_1hour, path)) {
-                        std::cout << "success save 1hour map " << path << std::endl;
-                    } else {
-                        std::cerr << "error save 1hour map " << path << std::endl;
-                    }
-                }
-            }
-        }
-        /////
-
-        return true;
-    } else {
-        // TODO: log
-        return false;
-    }
+    // TODO: res
+    return true;
 }
 
-bool preview_storage::save_preview_map(const std::shared_ptr<preview_map> &map,
+bool preview_storage::save_preview_map(const std::shared_ptr<preview_map>& map,
                                        const std::string& file_path) const noexcept
 {
     int fd = open(file_path.data(),
@@ -238,8 +75,12 @@ bool preview_storage::save_preview_map(const std::shared_ptr<preview_map> &map,
                        CV_8UC3,
                        map->data());
 
-        // TODO: it might happen a exeption?
-        bool res = cv::imencode(".jpg", in_mat, out_buff);
+        const std::vector<int> params {
+            cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 65
+        };
+
+        // TODO: exeption?
+        bool res = cv::imencode(".jpg", in_mat, out_buff, params);
 
         if (res) {
             ssize_t written_size = write(fd, out_buff.data(),out_buff.size());

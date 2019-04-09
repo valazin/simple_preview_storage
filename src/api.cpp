@@ -86,7 +86,8 @@ http::response api::handle_request(std::shared_ptr<http::request> req) noexcept
                                       cxt->duration_msecs,
                                       cxt->width,
                                       cxt->height,
-                                      req->body_buff)) {
+                                      req->body_buff->data(),
+                                      req->body_buff->size())) {
                 resp.code = 200;
             } else {
 //                TODO

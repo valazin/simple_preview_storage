@@ -46,9 +46,9 @@ void insert_test1(preview_storage* storage)
         char* data = new char[preview_size];
         memset(data, color_step*(i+1), preview_size);
 
-        auto buff = std::make_shared<http::buffer>(data, preview_size);
+        storage->add_preview("id", start_ut_msecs, duration_msecs, width, height, data, preview_size);
 
-        storage->add_preview("id", start_ut_msecs, duration_msecs, width, height, buff);
+        delete[] data;
 
         start_ut_msecs += duration_msecs;
     }
@@ -59,7 +59,7 @@ int main()
     preview_storage* storage = new preview_storage("/tmp/preview-storage");
 
     api a(storage);
-    if (!a.start("10.110.3.43", 1025)) {
+    if (!a.start("10.110.3.43", 1024)) {
         return -1;
     }
 
