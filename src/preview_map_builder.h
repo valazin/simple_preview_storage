@@ -18,7 +18,8 @@ public:
 
     std::function<void (int64_t start_ut_msecs,
                         const preview_map_format& format,
-                        std::shared_ptr<preview_map> map)> MapBuildedHandler;
+                        std::shared_ptr<preview_map> map,
+                        const std::vector<int64_t>& items_offset_msecs)> MapBuildedHandler;
 
     preview_map_builder(const preview_map_format& main_format,
                         const std::vector<preview_map_format>& sub_formats) noexcept;
@@ -31,10 +32,16 @@ public:
                            size_t data_size) noexcept;
 
 private:
+    struct private_map
+    {
+        std::vector<int64_t> items_offset_msecs;
+        std::shared_ptr<preview_map> map;
+    };
+
     struct private_format
     {
         preview_map_format format;
-        std::unordered_map<size_t, std::shared_ptr<preview_map>> maps;
+        std::unordered_map<size_t, std::shared_ptr<private_map>> maps;
     };
 
 private:

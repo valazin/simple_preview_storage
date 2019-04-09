@@ -9,6 +9,8 @@ preview_map_builder::preview_map_builder(const preview_map_format& main_format,
                                          const std::vector<preview_map_format>& sub_formats) noexcept :
     _main_format{main_format, {}}
 {
+    // TODO: validate sub_formats
+
     std::vector<private_format> sub;
     sub.reserve(sub_formats.size());
     for (auto& format : sub_formats) {
@@ -116,27 +118,40 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         }
     }
 
-    std::shared_ptr<preview_map> map;
+    // TODO: try load from repository
+
+    std::shared_ptr<private_map> map;
     auto search = format.maps.find(map_number);
     if (search != format.maps.end()) {
         map = search->second;
     } else {
-        map = std::make_shared<preview_map>(format.format.rows,
-                                            format.format.cols,
-                                            format.format.item_width_px,
-                                            format.format.item_height_px);
+        map = std::make_shared<private_map>();
+        map->map = std::make_shared<preview_map>(format.format.rows,
+                                                 format.format.cols,
+                                                 format.format.item_width_px,
+                                                 format.format.item_height_px);
+        map->items_offset_msecs = std::vector<int64_t>(format.format.items, -1);
         format.maps.insert({map_number, map});
     }
 
     // TODO: sometimes flush to disk
 
-    // TODO: check preview offset if this the item exists
-    if (map->insert_preview(item_number, data, data_size)) {
-        if (map->is_full() && MapBuildedHandler) {
-            // TODO: calculate
-            int64_t start_ut_msecs = 0;
-            MapBuildedHandler(start_ut_msecs, format.format, map);
-            // TODO: release
+    if (map->items_offset_msecs.at(item_number) == -1 ||
+            map->items_offset_msecs.at(item_number) > item_offset_msecs) {
+        if (map->map->insert_preview(item_number, data, data_size)) {
+            map->items_offset_msecs[item_number] = item_offset_msecs;
+
+            if (map->map->is_full() && MapBuildedHandler) {
+                int64_t start_ut_msecs = static_cast<int64_t>(
+                            (items - item_number)) * format.format.item_duration_msecs;
+
+                MapBuildedHandler(start_ut_msecs,
+                                  format.format,
+                                  map->map,
+                                  map->items_offset_msecs);
+
+                format.maps.erase(search);
+            }
         }
     }
 

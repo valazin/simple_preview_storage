@@ -1,10 +1,7 @@
 ﻿#include "preview_storage.h"
 
-#include <ctime>
-#include <cassert>
 #include <iostream>
 
-#include "filesystem.h"
 #include "preview_map_format.h"
 
 preview_storage::preview_storage(const std::string &dir_path) noexcept :
@@ -40,7 +37,8 @@ bool preview_storage::add_preview(const std::string& id,
         builder->MapBuildedHandler = [id, this](
                 int64_t start_ut_msecs,
                 const preview_map_format& format,
-                std::shared_ptr<preview_map> map) {
+                std::shared_ptr<preview_map> map,
+                const std::vector<int64_t>& items_offset_msecs) {
             _repository->save(id, start_ut_msecs, format, map);
         };
 

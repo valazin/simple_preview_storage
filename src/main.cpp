@@ -64,6 +64,7 @@ int main()
     }
 
     while (true) {
+        // TODO: flush none full maps if timeout
         std::this_thread::sleep_for(std::chrono::seconds(60));
     }
 
