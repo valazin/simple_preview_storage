@@ -18,8 +18,8 @@ public:
     bool add_preview(const std::string& id,
                      int64_t start_ut_msecs,
                      int64_t duration_msecs,
-                     size_t width,
-                     size_t height,
+                     size_t width_px,
+                     size_t height_px,
                      const char* data,
                      size_t data_size) noexcept;
 

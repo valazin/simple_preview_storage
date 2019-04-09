@@ -5,14 +5,20 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
-preview_map_builder::preview_map_builder(task tsk) noexcept
-    : _task(tsk)
+preview_map_builder::preview_map_builder(const preview_map_format& main_format,
+                                         const std::vector<preview_map_format>& sub_formats) noexcept :
+    _main_format{main_format, {}}
 {
-    // TODO: check task
+    std::vector<private_format> sub;
+    sub.reserve(sub_formats.size());
+    for (auto& format : sub_formats) {
+        sub.push_back({format, {}});
+    }
+    _sub_formats = sub;
 }
 
 preview_map_builder::error_type
-preview_map_builder::insert(int64_t start_ut_msecs,
+preview_map_builder::add_preview(int64_t start_ut_msecs,
                             int64_t duration_msecs,
                             size_t width_px,
                             size_t height_px,
@@ -39,21 +45,21 @@ preview_map_builder::insert(int64_t start_ut_msecs,
         std::cerr << "invalid data size " << data_size << std::endl;
         return error_type::invalid_arguments;
     }
-    if (duration_msecs > _task.format.item_duration_msecs) {
+    if (duration_msecs > _main_format.format.item_duration_msecs) {
         std::cout << "warning: duration " << duration_msecs
-                  << " more than " << _task.format.item_duration_msecs << std::endl;
+                  << " more than " << _main_format.format.item_duration_msecs << std::endl;
     }
     // TODO: check width and height with main_format
 
-    map_format& main_format = _task.format;
+    preview_map_format& main_format = _main_format.format;
 
-    private_insert(start_ut_msecs, data, data_size, main_format);
+    insert(start_ut_msecs, data, data_size, _main_format);
 
     const size_t items = static_cast<size_t>(
                 start_ut_msecs / main_format.item_duration_msecs);
-    for (auto& sub_format : _task.sub_formats) {
+    for (auto& sub_format : _sub_formats) {
         size_t ratio = static_cast<size_t>(
-                    sub_format.item_duration_msecs / main_format.item_duration_msecs);
+                    sub_format.format.item_duration_msecs / main_format.item_duration_msecs);
         if (items % ratio != 0) {
             continue;
         }
@@ -62,8 +68,8 @@ preview_map_builder::insert(int64_t start_ut_msecs,
         size_t sub_data_size = 0;
 
         // TODO: one time scaling for the same map size
-        if (sub_format.item_width_px < width_px
-                || sub_format.item_height_px < height_px) {
+        if (sub_format.format.item_width_px < width_px
+                || sub_format.format.item_height_px < height_px) {
             cv::Mat in(static_cast<int>(height_px),
                        static_cast<int>(width_px),
                        CV_8UC3,
@@ -71,8 +77,8 @@ preview_map_builder::insert(int64_t start_ut_msecs,
             cv::Mat out;
 
             cv::Size size;
-            size.width = static_cast<int>(sub_format.item_width_px);
-            size.height = static_cast<int>(sub_format.item_height_px);
+            size.width = static_cast<int>(sub_format.format.item_width_px);
+            size.height = static_cast<int>(sub_format.format.item_height_px);
             // TODO: exception?
             cv::resize(in, out, size);
 
@@ -83,28 +89,28 @@ preview_map_builder::insert(int64_t start_ut_msecs,
             sub_data_size = data_size;
         }
 
-        private_insert(start_ut_msecs, sub_data, sub_data_size, sub_format);
+        insert(start_ut_msecs, sub_data, sub_data_size, sub_format);
     }
 
     // TODO: res
     return error_type::none_error;
 }
 
-void preview_map_builder::private_insert(int64_t start_ut_msecs,
-                                         const char* data,
-                                         size_t data_size,
-                                         map_format& format) noexcept
+void preview_map_builder::insert(int64_t start_ut_msecs,
+                                 const char* data,
+                                 size_t data_size,
+                                 private_format& format) noexcept
 {
     const size_t items = static_cast<size_t>(
-                start_ut_msecs / format.item_duration_msecs);
-    size_t map_number = items / format.items;
-    size_t item_number = items % format.items;
+                start_ut_msecs / format.format.item_duration_msecs);
+    size_t map_number = items / format.format.items;
+    size_t item_number = items % format.format.items;
 
     const int64_t item_offset_msecs =
-            start_ut_msecs % format.item_duration_msecs;
-    if (item_offset_msecs > (format.item_duration_msecs / 2)) {
+            start_ut_msecs % format.format.item_duration_msecs;
+    if (item_offset_msecs > (format.format.item_duration_msecs / 2)) {
         ++item_number;
-        if (item_number + 1 > format.items) {
+        if (item_number + 1 > format.format.items) {
             item_number = 0;
             ++map_number;
         }
@@ -115,19 +121,21 @@ void preview_map_builder::private_insert(int64_t start_ut_msecs,
     if (search != format.maps.end()) {
         map = search->second;
     } else {
-        map = std::make_shared<preview_map>(format.rows,
-                                            format.cols,
-                                            format.item_width_px,
-                                            format.item_height_px);
+        map = std::make_shared<preview_map>(format.format.rows,
+                                            format.format.cols,
+                                            format.format.item_width_px,
+                                            format.format.item_height_px);
         format.maps.insert({map_number, map});
     }
+
+    // TODO: sometimes flush to disk
 
     // TODO: check preview offset if this the item exists
     if (map->insert_preview(item_number, data, data_size)) {
         if (map->is_full() && MapBuildedHandler) {
             // TODO: calculate
             int64_t start_ut_msecs = 0;
-            MapBuildedHandler(start_ut_msecs, format, map);
+            MapBuildedHandler(start_ut_msecs, format.format, map);
             // TODO: release
         }
     }
