@@ -125,9 +125,10 @@ void preview_map_builder::private_insert(int64_t start_ut_msecs,
     // TODO: check preview offset if this the item exists
     if (map->insert_preview(item_number, data, data_size)) {
         if (map->is_full() && MapBuildedHandler) {
-            // TODO:
+            // TODO: calculate
             int64_t start_ut_msecs = 0;
             MapBuildedHandler(start_ut_msecs, format, map);
+            // TODO: release
         }
     }
 
