@@ -35,7 +35,6 @@ public:
 private:
     struct private_map
     {
-        std::vector<int64_t> items_offset_msecs;
         size_t item_counter = 0;
         std::shared_ptr<preview_map> map;
         std::vector<preview_item_info> items_info;

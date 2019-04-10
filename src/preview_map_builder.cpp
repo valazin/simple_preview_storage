@@ -96,7 +96,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                                  size_t data_size,
                                  private_format& format) noexcept
 {
-    const size_t items = static_cast<size_t>(
+    size_t items = static_cast<size_t>(
                 start_ut_msecs / format.format.item_duration_msecs);
     size_t map_number = items / format.format.items;
     size_t item_number = items % format.format.items;
@@ -104,6 +104,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
     int64_t item_offset_msecs =
             start_ut_msecs % format.format.item_duration_msecs;
     if (item_offset_msecs > (format.format.item_duration_msecs / 2)) {
+        ++items;
         ++item_number;
         if (item_number + 1 > format.format.items) {
             item_number = 0;
@@ -146,10 +147,10 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
             ++map->item_counter;
 
             if (map->item_counter >= format.format.items && MapBuildedHandler) {
-                int64_t start_ut_msecs = static_cast<int64_t>(
+                int64_t map_start_ut_msecs = static_cast<int64_t>(
                             (items - item_number)) * format.format.item_duration_msecs;
 
-                MapBuildedHandler(start_ut_msecs,
+                MapBuildedHandler(map_start_ut_msecs,
                                   format.format,
                                   map->map,
                                   map->items_info);
