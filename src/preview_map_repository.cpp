@@ -19,7 +19,8 @@ preview_map_repository::error_type
 preview_map_repository::save(const std::string& id,
                              int64_t start_ut_msecs,
                              const preview_map_format& format,
-                             std::shared_ptr<preview_map> map) noexcept
+                             std::shared_ptr<preview_map> map,
+                             const std::vector<int64_t>& items_offset_msecs) noexcept
 {
     const file_info info = preview_file_info(id, start_ut_msecs, format);
 
@@ -33,54 +34,57 @@ preview_map_repository::save(const std::string& id,
     }
 
     const std::string file_path = dir_path + "/" + info.file_name;
+    const std::string meta_file_path = file_path + "_meta";
 
-    return save_preview_map(map, file_path);
+    error_type error = save_preview_map(map, file_path);
+    if (error == error_type::none_error) {
+        error = save_preview_offsets(items_offset_msecs, meta_file_path);
+    }
+
+    return error;
 }
 
 preview_map_repository::error_type
 preview_map_repository::save_preview_map(const std::shared_ptr<preview_map> &map,
-                                         const std::string &file_path) const noexcept
+                                         const std::string &file_path) noexcept
 {
-    int fd = open(file_path.data(),
-                  O_WRONLY | O_CREAT | O_TRUNC,
-                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+    std::vector<uchar> out_buff(map->size(), 0);
+    cv::Mat in_mat(static_cast<int>(map->height_px()),
+                   static_cast<int>(map->width_px()),
+                   CV_8UC3,
+                   map->data());
 
-    if (fd != -1) {
-        std::vector<uchar> out_buff(map->size(), 0);
-        cv::Mat in_mat(static_cast<int>(map->height_px()),
-                       static_cast<int>(map->width_px()),
-                       CV_8UC3,
-                       map->data());
+    const std::vector<int> params {
+        cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 65
+    };
 
-        const std::vector<int> params {
-            cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 65
-        };
+    // TODO: exeption?
+    bool res = cv::imencode(".jpg", in_mat, out_buff, params);
 
-        // TODO: exeption?
-        bool res = cv::imencode(".jpg", in_mat, out_buff, params);
-
-        if (res) {
-            ssize_t written_size = write(fd, out_buff.data(),out_buff.size());
-            if (written_size != -1) {
-                // TODO: if a written size less than a preview size
-                return error_type::none_error;
-            } else {
-                perror("write map to file");
-                return error_type::file_creating_error;
-            }
-        } else {
-            return error_type::file_creating_error;
-        }
+    if (res) {
+        return save_to_file(out_buff.data(),out_buff.size(), file_path);
     } else {
-        return error_type::file_creating_error;
+        return error_type::image_encoding_error;
     }
+}
+
+preview_map_repository::error_type
+preview_map_repository::save_preview_offsets(const std::vector<int64_t> &offsets,
+                                             const std::string& file_path) noexcept
+{
+    std::string offset_text;
+    for (auto offset : offsets) {
+        offset_text += std::to_string(offset) + ";";
+    }
+    return save_to_file(offset_text.data(), offset_text.size(), file_path);
 }
 
 preview_map_repository::file_info
 preview_map_repository::preview_file_info(const std::string& id,
                                           int64_t start_ut_msecs,
-                                          const preview_map_format& format) const noexcept
+                                          const preview_map_format& format) noexcept
 {
+    // TODO: move to datetime utility
     std::time_t start_ut_secs = start_ut_msecs / 1000;
     struct std::tm* utc_date = gmtime(&start_ut_secs);
 
@@ -104,4 +108,28 @@ preview_map_repository::preview_file_info(const std::string& id,
             + "msecs";
 
     return {relative_dir_path, file_name};
+}
+
+preview_map_repository::error_type
+preview_map_repository::save_to_file(const void *data,
+                                     size_t data_size,
+                                     const std::string& file_path) noexcept
+{
+    // TODO: move to filesystem utility
+    int fd = open(file_path.data(),
+                  O_WRONLY | O_CREAT | O_TRUNC,
+                  S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+
+    if (fd != -1) {
+        ssize_t written_size = write(fd, data, data_size);
+        if (written_size != -1) {
+            // TODO: if a written size less than a preview size
+            return error_type::none_error;
+        } else {
+            perror("write map to file");
+            return error_type::file_creating_error;
+        }
+    } else {
+        return error_type::file_creating_error;
+    }
 }

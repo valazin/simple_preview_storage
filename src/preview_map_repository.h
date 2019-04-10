@@ -12,7 +12,8 @@ public:
     enum error_type
     {
         none_error,
-        file_creating_error
+        file_creating_error,
+        image_encoding_error
     };
 
     explicit preview_map_repository(const std::string& dir_path) noexcept;
@@ -20,7 +21,8 @@ public:
     error_type save(const std::string& id,
                     int64_t start_ut_msecs,
                     const preview_map_format& format,
-                    std::shared_ptr<preview_map> map) noexcept;
+                    std::shared_ptr<preview_map> map,
+                    const std::vector<int64_t>& items_offset_msecs) noexcept;
 
 private:
     struct file_info
@@ -30,16 +32,22 @@ private:
     };
 
 private:
-    error_type save_preview_map(const std::shared_ptr<preview_map>& map,
-                                const std::string& file_path) const noexcept;
+    static error_type save_preview_map(const std::shared_ptr<preview_map>& map,
+                                       const std::string& file_path) noexcept;
 
-    file_info preview_file_info(const std::string& id,
-                                int64_t start_ut_msecs,
-                                const preview_map_format& format) const noexcept;
+    static error_type save_preview_offsets(const std::vector<int64_t>& offsets,
+                                           const std::string& file_path) noexcept;
+
+    static file_info preview_file_info(const std::string& id,
+                                       int64_t start_ut_msecs,
+                                       const preview_map_format& format) noexcept;
+
+    static error_type save_to_file(const void* data,
+                                   size_t data_size,
+                                   const std::string &file_path) noexcept;
 
 private:
     const std::string _dir_path;
-
 };
 
 #endif // PREVIEW_MAP_REPOSITORY_H

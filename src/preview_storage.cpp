@@ -39,7 +39,7 @@ bool preview_storage::add_preview(const std::string& id,
                 const preview_map_format& format,
                 std::shared_ptr<preview_map> map,
                 const std::vector<int64_t>& items_offset_msecs) {
-            _repository->save(id, start_ut_msecs, format, map);
+            _repository->save(id, start_ut_msecs, format, map, items_offset_msecs);
         };
 
         _builders.insert({id, builder});

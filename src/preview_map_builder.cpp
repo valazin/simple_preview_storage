@@ -11,12 +11,10 @@ preview_map_builder::preview_map_builder(const preview_map_format& main_format,
 {
     // TODO: validate sub_formats
 
-    std::vector<private_format> sub;
-    sub.reserve(sub_formats.size());
+    _sub_formats.reserve(sub_formats.size());
     for (auto& format : sub_formats) {
-        sub.push_back({format, {}});
+        _sub_formats.push_back({format, {}});
     }
-    _sub_formats = sub;
 }
 
 preview_map_builder::error_type
