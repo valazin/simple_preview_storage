@@ -60,17 +60,17 @@ int main()
 {
     preview_storage* storage = new preview_storage("/tmp/preview-storage");
 
-    insert_test1(storage);
+//    insert_test1(storage);
 
-//    api a(storage);
-//    if (!a.start("10.110.3.43", 1024)) {
-//        return -1;
-//    }
+    api a(storage);
+    if (!a.start("10.110.3.43", 1025)) {
+        return -1;
+    }
 
-//    while (true) {
-//        // TODO: flush none full maps if timeout
-//        std::this_thread::sleep_for(std::chrono::seconds(60));
-//    }
+    while (true) {
+        // TODO: flush none full maps if timeout
+        std::this_thread::sleep_for(std::chrono::seconds(60));
+    }
 
     return  0;
 }

@@ -19,11 +19,11 @@ preview_map_builder::preview_map_builder(const preview_map_format& main_format,
 
 preview_map_builder::error_type
 preview_map_builder::add_preview(int64_t start_ut_msecs,
-                            int64_t duration_msecs,
-                            size_t width_px,
-                            size_t height_px,
-                            const char *data,
-                            size_t data_size) noexcept
+                                 int64_t duration_msecs,
+                                 size_t width_px,
+                                 size_t height_px,
+                                 const char* data,
+                                 size_t data_size) noexcept
 {
     if (start_ut_msecs < 0) {
         std::cerr << "invalid start_timestamp_msecs " << start_ut_msecs << std::endl;
@@ -64,9 +64,6 @@ preview_map_builder::add_preview(int64_t start_ut_msecs,
             continue;
         }
 
-        const char* sub_data = nullptr;
-        size_t sub_data_size = 0;
-
         // TODO: one time scaling for the same map size
         if (sub_format.format.item_width_px < width_px
                 || sub_format.format.item_height_px < height_px) {
@@ -82,14 +79,12 @@ preview_map_builder::add_preview(int64_t start_ut_msecs,
             // TODO: exception?
             cv::resize(in, out, size);
 
-            sub_data = reinterpret_cast<char*>(out.data);
-            sub_data_size = out.total() * out.elemSize();
+            const char* resize_data = reinterpret_cast<char*>(out.data);
+            const size_t resize_data_size = out.total() * out.elemSize();
+            insert(start_ut_msecs, resize_data, resize_data_size, sub_format);
         } else {
-            sub_data = data;
-            sub_data_size = data_size;
+            insert(start_ut_msecs, data, data_size, sub_format);
         }
-
-        insert(start_ut_msecs, sub_data, sub_data_size, sub_format);
     }
 
     // TODO: res
