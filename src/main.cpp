@@ -35,8 +35,8 @@ void insert_test1(preview_storage* storage)
 {
     int64_t start_ut_msecs = 2*(60 * 60 * 24 * 1000);
     const int64_t duration_msecs = 10 * 1000;
-    const size_t width = 160;
-    const size_t height = 90;
+    const size_t width = 160*2;
+    const size_t height = 90*2;
     const size_t preview_size = 3*height*width;
 
     const int color_step = 255 / 30;
@@ -52,21 +52,25 @@ void insert_test1(preview_storage* storage)
 
         start_ut_msecs += duration_msecs;
     }
+
+    std::cout << "job done" << std::endl;
 }
 
 int main()
 {
     preview_storage* storage = new preview_storage("/tmp/preview-storage");
 
-    api a(storage);
-    if (!a.start("10.110.3.43", 1024)) {
-        return -1;
-    }
+    insert_test1(storage);
 
-    while (true) {
-        // TODO: flush none full maps if timeout
-        std::this_thread::sleep_for(std::chrono::seconds(60));
-    }
+//    api a(storage);
+//    if (!a.start("10.110.3.43", 1024)) {
+//        return -1;
+//    }
+
+//    while (true) {
+//        // TODO: flush none full maps if timeout
+//        std::this_thread::sleep_for(std::chrono::seconds(60));
+//    }
 
     return  0;
 }

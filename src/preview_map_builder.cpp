@@ -136,7 +136,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
     if (map->items_offset_msecs.at(item_number) == -1 ||
             map->items_offset_msecs.at(item_number) > item_offset_msecs) {
-        if (map->map->insert_preview(item_number, data, data_size)) {
+        if (map->map->insert(item_number, data, data_size)) {
             map->items_offset_msecs[item_number] = item_offset_msecs;
 
             if (map->map->is_full() && MapBuildedHandler) {

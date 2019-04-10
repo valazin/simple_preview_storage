@@ -52,7 +52,7 @@ preview_map_repository::save_preview_map(const std::shared_ptr<preview_map> &map
     cv::Mat in_mat(static_cast<int>(map->height_px()),
                    static_cast<int>(map->width_px()),
                    CV_8UC3,
-                   map->data());
+                   const_cast<char*>(map->data()));
 
     const std::vector<int> params {
         cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 65
@@ -96,7 +96,8 @@ preview_map_repository::preview_file_info(const std::string& id,
     const std::string dir2 = std::to_string(year)
             + "-"
             + std::to_string(month)
-            + "-" + std::to_string(day);
+            + "-"
+            + std::to_string(day);
     const std::vector<std::string> relative_dir_path =  {dir1, dir2};
 
     const size_t map_number = (static_cast<size_t>(start_ut_msecs) % 86400000)
@@ -124,12 +125,14 @@ preview_map_repository::save_to_file(const void *data,
         ssize_t written_size = write(fd, data, data_size);
         if (written_size != -1) {
             // TODO: if a written size less than a preview size
+            close(fd);
             return error_type::none_error;
         } else {
             perror("write map to file");
             return error_type::file_creating_error;
         }
     } else {
+        perror("open file");
         return error_type::file_creating_error;
     }
 }

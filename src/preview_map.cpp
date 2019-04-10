@@ -3,18 +3,17 @@
 #include <cstring>
 #include <iostream>
 
-preview_map::preview_map(size_t number_of_rows,
-                         size_t number_of_columns,
-                         size_t preview_width,
-                         size_t preview_height) noexcept :
-    _rows(number_of_rows),
-    _cols(number_of_columns),
-    _number_of_previews(_rows*_cols),
-    _preview_width(preview_width),
-    _preview_height(preview_height),
-    _preview_size(preview_width * preview_height * 3),
-    _map_size(_preview_size * _number_of_previews),
-    _preview_info(_number_of_previews, preview_info())
+preview_map::preview_map(size_t rows,
+                         size_t cols,
+                         size_t item_width_px,
+                         size_t item_height_px) noexcept :
+    _rows(rows),
+    _cols(cols),
+    _items(_rows*_cols),
+    _item_width_px(item_width_px),
+    _item_height_px(item_height_px),
+    _item_size(item_width_px * item_height_px * 3),
+    _map_size(_item_size * _items)
 {
 }
 
@@ -27,10 +26,10 @@ preview_map::~preview_map()
 
 bool preview_map::is_full() const noexcept
 {
-    return (_added_number_of_previews == _number_of_previews);
+    return (_added_number_of_previews == _items);
 }
 
-char *preview_map::data() const noexcept
+const char *preview_map::data() const noexcept
 {
     return _buff;
 }
@@ -42,20 +41,20 @@ size_t preview_map::size() const noexcept
 
 size_t preview_map::width_px() const
 {
-    return _cols * _preview_width;
+    return _cols * _item_width_px;
 }
 
 size_t preview_map::height_px() const
 {
-    return _rows * _preview_height;
+    return _rows * _item_height_px;
 }
 
-bool preview_map::insert_preview(size_t number,
-                                 const char* buff,
-                                 std::size_t size) noexcept
+bool preview_map::insert(size_t number,
+                         const char* buff,
+                         std::size_t size) noexcept
 {
-    if (size != _preview_size) {
-        std::cerr << "size must be " << _preview_size
+    if (size != _item_size) {
+        std::cerr << "size must be " << _item_size
                   << " but it's " << size << std::endl;
         return false;
     }
@@ -71,14 +70,14 @@ bool preview_map::insert_preview(size_t number,
         _buff_was_allocated = true;
     }
 
-    size_t pos = (3 * col * _preview_width);
+    size_t pos = (3 * col * _item_width_px);
     if (row > 0) {
-        pos += 3 * row * _cols * _preview_width * _preview_height;
+        pos += 3 * row * _cols * _item_width_px * _item_height_px;
     }
 
-    for (size_t i=0; i<_preview_height; ++i) {
-        memcpy(_buff + pos, buff + (3 * i * _preview_width), 3 * _preview_width);
-        pos += 3 * _cols * _preview_width;
+    for (size_t i=0; i<_item_height_px; ++i) {
+        memcpy(_buff + pos, buff + (3 * i * _item_width_px), 3 * _item_width_px);
+        pos += 3 * _cols * _item_width_px;
     }
 
     ++_added_number_of_previews;
