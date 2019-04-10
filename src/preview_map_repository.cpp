@@ -20,7 +20,7 @@ preview_map_repository::save(const std::string& id,
                              int64_t start_ut_msecs,
                              const preview_map_format& format,
                              std::shared_ptr<preview_map> map,
-                             const std::vector<int64_t>& items_offset_msecs) noexcept
+                             const std::vector<preview_item_info>& items_info) noexcept
 {
     const file_info info = preview_file_info(id, start_ut_msecs, format);
 
@@ -38,7 +38,7 @@ preview_map_repository::save(const std::string& id,
 
     error_type error = save_preview_map(map, file_path);
     if (error == error_type::none_error) {
-        error = save_preview_offsets(items_offset_msecs, meta_file_path);
+        error = save_preview_offsets(items_info, meta_file_path);
     }
 
     return error;
@@ -69,14 +69,22 @@ preview_map_repository::save_preview_map(const std::shared_ptr<preview_map> &map
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_preview_offsets(const std::vector<int64_t> &offsets,
+preview_map_repository::save_preview_offsets(const std::vector<preview_item_info>& items_info,
                                              const std::string& file_path) noexcept
 {
-    std::string offset_text;
-    for (auto offset : offsets) {
-        offset_text += std::to_string(offset) + ";";
+    std::string text;
+    for (size_t i=0; i<items_info.size(); ++i) {
+        const preview_item_info& info = items_info[i];
+        if (!info.empty) {
+            text += std::to_string(info.offset_msecs/1000);
+        } else {
+            text += "null";
+        }
+        if (i != items_info.size() - 1) {
+            text += ";";
+        }
     }
-    return save_to_file(offset_text.data(), offset_text.size(), file_path);
+    return save_to_file(text.data(), text.size(), file_path);
 }
 
 preview_map_repository::file_info
@@ -93,11 +101,17 @@ preview_map_repository::preview_file_info(const std::string& id,
     const int year = utc_date->tm_year + 1900;
 
     const std::string dir1 = id;
-    const std::string dir2 = std::to_string(year)
-            + "-"
-            + std::to_string(month)
-            + "-"
-            + std::to_string(day);
+
+    std::string dir2 = std::to_string(year)+ "-";
+    if (month < 9) {
+        dir2 += "0";
+    }
+    dir2 +=  std::to_string(month) + "-";
+    if (day < 9) {
+        dir2 += "0";
+    }
+    dir2 += std::to_string(day);
+
     const std::vector<std::string> relative_dir_path =  {dir1, dir2};
 
     const size_t map_number = (static_cast<size_t>(start_ut_msecs) % 86400000)

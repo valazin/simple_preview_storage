@@ -101,7 +101,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
     size_t map_number = items / format.format.items;
     size_t item_number = items % format.format.items;
 
-    const int64_t item_offset_msecs =
+    int64_t item_offset_msecs =
             start_ut_msecs % format.format.item_duration_msecs;
     if (item_offset_msecs > (format.format.item_duration_msecs / 2)) {
         ++item_number;
@@ -109,6 +109,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
             item_number = 0;
             ++map_number;
         }
+        item_offset_msecs -= format.format.item_duration_msecs;
     }
 
     // TODO: try load from repository
@@ -119,35 +120,43 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         map = search->second;
     } else {
         map = std::make_shared<private_map>();
+
         map->map = std::make_shared<preview_map>(format.format.rows,
                                                  format.format.cols,
                                                  format.format.item_width_px,
                                                  format.format.item_height_px);
-        map->items_offset_msecs = std::vector<int64_t>(format.format.items, -1);
+
+        preview_item_info default_info;
+        default_info.empty = true;
+        default_info.offset_msecs = 0;
+        map->items_info = std::vector<preview_item_info>{format.format.items, default_info};
+
         format.maps.insert({map_number, map});
     }
 
     // TODO: sometimes flush to disk
 
-    if (map->items_offset_msecs.at(item_number) == -1 ||
-            map->items_offset_msecs.at(item_number) > item_offset_msecs) {
-        if (map->map->insert(item_number, data, data_size)) {
-            map->items_offset_msecs[item_number] = item_offset_msecs;
+    preview_item_info& item_info = map->items_info[item_number];
 
-            if (map->map->is_full() && MapBuildedHandler) {
+    if (item_info.empty || abs(item_info.offset_msecs) > abs(item_offset_msecs)) {
+        if (map->map->insert(item_number, data, data_size)) {
+            item_info.empty = false;
+            item_info.offset_msecs = item_offset_msecs;
+
+            ++map->item_counter;
+
+            if (map->item_counter >= format.format.items && MapBuildedHandler) {
                 int64_t start_ut_msecs = static_cast<int64_t>(
                             (items - item_number)) * format.format.item_duration_msecs;
 
                 MapBuildedHandler(start_ut_msecs,
                                   format.format,
                                   map->map,
-                                  map->items_offset_msecs);
+                                  map->items_info);
 
                 format.maps.erase(search);
             }
         }
-    } else {
-        // TODO: increase count added items. maybe move this counter to private_map
     }
 
     // TODO: return result

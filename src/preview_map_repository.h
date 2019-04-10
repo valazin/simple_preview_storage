@@ -5,6 +5,7 @@
 
 #include "preview_map.h"
 #include "preview_map_format.h"
+#include "preview_item_info.h"
 
 class preview_map_repository
 {
@@ -22,7 +23,7 @@ public:
                     int64_t start_ut_msecs,
                     const preview_map_format& format,
                     std::shared_ptr<preview_map> map,
-                    const std::vector<int64_t>& items_offset_msecs) noexcept;
+                    const std::vector<preview_item_info>& items_info) noexcept;
 
 private:
     struct file_info
@@ -35,7 +36,7 @@ private:
     static error_type save_preview_map(const std::shared_ptr<preview_map>& map,
                                        const std::string& file_path) noexcept;
 
-    static error_type save_preview_offsets(const std::vector<int64_t>& offsets,
+    static error_type save_preview_offsets(const std::vector<preview_item_info>& items_info,
                                            const std::string& file_path) noexcept;
 
     static file_info preview_file_info(const std::string& id,
