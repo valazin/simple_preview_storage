@@ -57,7 +57,8 @@ variables:
     - echo "FROM $H_BASE_BUILD_REGISTRY/$BASE_IMAGE " > build.Dockerfile
     - echo "COPY requirements_dev.txt /tmp/project_reg.txt " >> build.Dockerfile
     - echo "RUN apt-get update \ " >> build.Dockerfile
-    - echo "    && apt install -y --no-install-recommends $(cat requirements_dev.txt) \ " >> build.Dockerfile
+    - echo "    && apt install -y --no-install-recommends \ " >> build.Dockerfile
+    - echo "       $(sort -u requirements_dev.txt | sed 's! !!g' | sed -r '/^\s*$/d' | sed ':a;N;$!ba;s/\n/ /g') \ " >> build.Dockerfile
     - echo "    && rm -rf /var/lib/apt/lists/* \ " >> build.Dockerfile
     - echo "    && echo " " >> /tmp/base_requirements.txt \ " >> build.Dockerfile
     - echo "    && cat /tmp/project_reg.txt >> /tmp/base_requirements.txt \ " >> build.Dockerfile
@@ -73,7 +74,8 @@ variables:
     - echo "FROM $H_BASE_PRODUCTION_REGISTRY/$BASE_IMAGE " > prod.Dockerfile
     - echo "COPY requirements_prod.txt /tmp/project_reg.txt " >> prod.Dockerfile
     - echo "RUN apt-get update \ " >> prod.Dockerfile
-    - echo "    && apt install -y --no-install-recommends $(cat requirements_prod.txt) \ " >> prod.Dockerfile
+    - echo "    && apt install -y --no-install-recommends \ " >> prod.Dockerfile
+    - echo "       $(sort -u requirements_prod.txt | sed 's! !!g' | sed -r '/^\s*$/d' | sed ':a;N;$!ba;s/\n/ /g') \ " >> prod.Dockerfile
     - echo "    && rm -rf /var/lib/apt/lists/* \ " >> prod.Dockerfile
     - echo "    && echo " " >> /tmp/base_requirements.txt \ " >> prod.Dockerfile
     - echo "    && cat /tmp/project_reg.txt >> /tmp/base_requirements.txt \ " >> prod.Dockerfile
