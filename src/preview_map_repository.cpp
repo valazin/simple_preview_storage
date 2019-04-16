@@ -36,16 +36,16 @@ preview_map_repository::save(const std::string& id,
     const std::string file_path = dir_path + "/" + info.file_name;
     const std::string meta_file_path = file_path + "_meta";
 
-    error_type error = save_preview_map(map, file_path);
+    error_type error = save_preview_map_to_file(map, file_path);
     if (error == error_type::none_error) {
-        error = save_preview_offsets(items_info, meta_file_path);
+        error = save_preview_offsets_to_file(items_info, meta_file_path);
     }
 
     return error;
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_preview_map(const std::shared_ptr<preview_map> &map,
+preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_map> &map,
                                          const std::string &file_path) noexcept
 {
     std::vector<uchar> out_buff(map->size(), 0);
@@ -69,7 +69,7 @@ preview_map_repository::save_preview_map(const std::shared_ptr<preview_map> &map
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_preview_offsets(const std::vector<preview_item_info>& items_info,
+preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_item_info>& items_info,
                                              const std::string& file_path) noexcept
 {
     std::string text;

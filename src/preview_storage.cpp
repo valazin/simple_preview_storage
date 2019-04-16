@@ -25,7 +25,7 @@ bool preview_storage::add_preview(const std::string& id,
         builder = search->second;
     } else {
         const preview_map_format main_10sec{5,6,10000,320,180};
-        const preview_map_format sub_1min{5,6,6*10000,160,90,};
+        const preview_map_format sub_1min{5,6,6*10000,160,90};
         const preview_map_format sub_1hour{4,6,360*10000,160,90};
         const std::vector<preview_map_format> sub_formats = {
             sub_1min,

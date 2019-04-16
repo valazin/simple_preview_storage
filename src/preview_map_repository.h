@@ -33,11 +33,11 @@ private:
     };
 
 private:
-    static error_type save_preview_map(const std::shared_ptr<preview_map>& map,
-                                       const std::string& file_path) noexcept;
+    static error_type save_preview_map_to_file(const std::shared_ptr<preview_map>& map,
+                                               const std::string& file_path) noexcept;
 
-    static error_type save_preview_offsets(const std::vector<preview_item_info>& items_info,
-                                           const std::string& file_path) noexcept;
+    static error_type save_preview_offsets_to_file(const std::vector<preview_item_info>& items_info,
+                                                   const std::string& file_path) noexcept;
 
     static file_info preview_file_info(const std::string& id,
                                        int64_t start_ut_msecs,

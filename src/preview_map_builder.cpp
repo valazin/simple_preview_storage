@@ -55,11 +55,11 @@ preview_map_builder::add_preview(int64_t start_ut_msecs,
 
     insert(start_ut_msecs, data, data_size, _main_format);
 
-    const size_t items = static_cast<size_t>(
-                start_ut_msecs / main_format.item_duration_msecs);
+    const size_t items = static_cast<size_t>(start_ut_msecs
+                                             / main_format.item_duration_msecs);
     for (auto& sub_format : _sub_formats) {
-        size_t ratio = static_cast<size_t>(
-                    sub_format.format.item_duration_msecs / main_format.item_duration_msecs);
+        size_t ratio = static_cast<size_t>(sub_format.format.item_duration_msecs
+                                           / main_format.item_duration_msecs);
         if (items % ratio != 0) {
             continue;
         }
@@ -96,6 +96,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                                  size_t data_size,
                                  private_format& format) noexcept
 {
+    // a number of previews followed by the item number
     size_t items = static_cast<size_t>(
                 start_ut_msecs / format.format.item_duration_msecs);
     size_t map_number = items / format.format.items;
