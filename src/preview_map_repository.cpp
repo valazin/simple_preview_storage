@@ -46,7 +46,7 @@ preview_map_repository::save(const std::string& id,
 
 preview_map_repository::error_type
 preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_map> &map,
-                                         const std::string &file_path) noexcept
+                                                 const std::string &file_path) noexcept
 {
     std::vector<uchar> out_buff(map->size(), 0);
     cv::Mat in_mat(static_cast<int>(map->height_px()),
@@ -70,7 +70,7 @@ preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_m
 
 preview_map_repository::error_type
 preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_item_info>& items_info,
-                                             const std::string& file_path) noexcept
+                                                     const std::string& file_path) noexcept
 {
     std::string text;
     for (size_t i=0; i<items_info.size(); ++i) {
