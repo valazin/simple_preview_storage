@@ -1,0 +1,229 @@
+stages:
+  - build
+  - deploy
+
+variables:
+  # CI_DEBUG_TRACE: "true"
+# project info
+  PROJECT_NAME: archivepreview #CI_PROJECT_NAME ?
+  PROJECT_VERSION: "0.1"  #CI_COMMIT_TAG ?
+# work directories  
+  BUILD_DIR: build
+  INSTALL_DIR: install
+  PACKAGES_DIR: deb_packages
+# name for project production image
+  OUTPUT_DOCKER_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_SLUG
+# url to registry with base images for build and production
+  H_BASE_BUILD_REGISTRY: registry.avalab.io/videos/avalab.videos.cpp.environment/build
+  H_BASE_PRODUCTION_REGISTRY: registry.avalab.io/videos/avalab.videos.cpp.environment/production
+# map with existing base images  
+  H_BASE_IMAGE_BASE:   base.amd64
+  H_BASE_IMAGE_CONFIG: configuration.amd64
+  H_BASE_IMAGE_FFMPEG: ffmpeg.amd64
+  H_BASE_IMAGE_NETWORK: network.amd64
+  H_BASE_IMAGE_OPENCV: opencv.amd64
+  H_BASE_IMAGE_MIX_FONC: mix_fonc.amd64
+#
+# ========  AHTUNG - CHECK THIS BLOCK FOR INIT PROJECT ===========================
+# [!!!] SELECT base image for build and deploy project in H_BASE_IMAGE_xxxx variables
+  BASE_IMAGE: $H_BASE_IMAGE_OPENCV
+#  project base image with project dependiens for build and deploy project
+#  if none dependies, then set next value:
+#     DOCKER_BUILD_IMAGE: ${H_BASE_BUILD_REGISTRY}/${BASE_IMAGE}
+#     DOCKER_PRODUCTION_IMAGE: ${H_BASE_PRODUCTION_REGISTRY}/${BASE_IMAGE}
+# else set custom name:
+  DOCKER_BUILD_IMAGE: ${CI_REGISTRY_IMAGE}/build-environment
+  DOCKER_PRODUCTION_IMAGE: ${CI_REGISTRY_IMAGE}/production-environment
+# ================================================================================
+
+#-----------------base jobs----------------------------------------
+.build_base_docker_images:
+  stage: build
+  tags:
+    - docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:  
+  # prepare requirements files
+    - mkdir -p /tmp/base
+    - cp requirements_dev.txt /tmp/base
+    - cp requirements_prod.txt /tmp/base
+    - cd /tmp/base
+  # create build project base image
+    - echo "[***] REBUILD base build $DOCKER_BUILD_IMAGE image..."
+    - echo "FROM $H_BASE_BUILD_REGISTRY/$BASE_IMAGE " > build.Dockerfile
+    - echo "COPY requirements_dev.txt /tmp/project_reg.txt " >> build.Dockerfile
+    - echo "RUN apt-get update \ " >> build.Dockerfile
+    - echo "    && apt install -y --no-install-recommends $(cat requirements_dev.txt) \ " >> build.Dockerfile
+    - echo "    && rm -rf /var/lib/apt/lists/* \ " >> build.Dockerfile
+    - echo "    && echo " " >> /tmp/base_requirements.txt \ " >> build.Dockerfile
+    - echo "    && cat /tmp/project_reg.txt >> /tmp/base_requirements.txt \ " >> build.Dockerfile
+    - echo "    && sort -u /tmp/base_requirements.txt -o /tmp/sorted.txt \ " >> build.Dockerfile
+    - echo "    && mv -f /tmp/sorted.txt /tmp/base_requirements.txt " >> build.Dockerfile
+    - docker pull $H_BASE_BUILD_REGISTRY/$BASE_IMAGE
+    - echo "[***] Build $DOCKER_BUILD_IMAGE image..."
+    - docker build -f build.Dockerfile -t $DOCKER_BUILD_IMAGE .
+    - echo "[***] Push $DOCKER_BUILD_IMAGE image to registry..."
+    - docker push $DOCKER_BUILD_IMAGE
+  # create production project base image
+    - echo "[***] REBUILD base production $DOCKER_PRODUCTION_IMAGE image..."
+    - echo "FROM $H_BASE_PRODUCTION_REGISTRY/$BASE_IMAGE " > prod.Dockerfile
+    - echo "COPY requirements_prod.txt /tmp/project_reg.txt " >> prod.Dockerfile
+    - echo "RUN apt-get update \ " >> prod.Dockerfile
+    - echo "    && apt install -y --no-install-recommends $(cat requirements_prod.txt) \ " >> prod.Dockerfile
+    - echo "    && rm -rf /var/lib/apt/lists/* \ " >> prod.Dockerfile
+    - echo "    && echo " " >> /tmp/base_requirements.txt \ " >> prod.Dockerfile
+    - echo "    && cat /tmp/project_reg.txt >> /tmp/base_requirements.txt \ " >> prod.Dockerfile
+    - echo "    && sort -u /tmp/base_requirements.txt -o /tmp/sorted.txt \ " >> prod.Dockerfile
+    - echo "    && mv -f /tmp/sorted.txt /tmp/base_requirements.txt " >> prod.Dockerfile
+    - docker pull $H_BASE_PRODUCTION_REGISTRY/$BASE_IMAGE
+    - echo "[***] Build $DOCKER_PRODUCTION_IMAGE image..."
+    - docker build -f prod.Dockerfile -t $DOCKER_PRODUCTION_IMAGE .
+    - echo "[***] Push $DOCKER_PRODUCTION_IMAGE image to registry..."
+    - docker push $DOCKER_PRODUCTION_IMAGE
+    
+.compile_job:
+  stage: build
+  tags:
+    - docker
+  allow_failure: false
+  image: $DOCKER_BUILD_IMAGE
+  services:
+    - docker:dind
+  before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
+  script:
+    - echo "S=${SRC_DIR} - B=${BUILD_DIR} - I=${INSTALL_DIR} - P=${PACKAGES_DIR}"
+    - rm -rf $BUILD_DIR $INSTALL_DIR
+    - mkdir -p $BUILD_DIR $INSTALL_DIR
+    - cd $BUILD_DIR
+    - cmake -DCMAKE_INSTALL_PREFIX=/usr -DCMAKE_BUILD_TYPE=RELEASE ..
+    - cmake --build .
+    - make DESTDIR=../$INSTALL_DIR install
+  artifacts:
+    paths:
+    - $INSTALL_DIR/  
+    expire_in: 10 minutes  
+
+.deploy_docker_job:
+  stage: deploy
+  tags:
+    - docker
+  image: docker:latest
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_BUILD_TOKEN $CI_REGISTRY
+  script:
+    - cd $INSTALL_DIR
+    - echo "FROM $DOCKER_PRODUCTION_IMAGE" > Dockerfile
+    - echo "COPY . /" >> Dockerfile
+    - docker pull $DOCKER_PRODUCTION_IMAGE
+    - echo "[***] Build $OUTPUT_DOCKER_TAG image..."
+    - docker build -t $OUTPUT_DOCKER_TAG .
+    - echo "[***] Push $OUTPUT_DOCKER_TAG image to registry..."
+    - docker push $OUTPUT_DOCKER_TAG
+
+.deploy_deb_dev_job:
+  stage: deploy
+  tags:
+    - docker
+  image: $DOCKER_BUILD_IMAGE
+  script:
+    - rm -rf $PACKAGES_DIR
+    - mkdir -p $PACKAGES_DIR
+    # remove space, empty lines and add ',' between lines
+    - DEV_DEPENDS=$(sort -u /tmp/base_requirements.txt | sed 's! !!g' | sed -r '/^\s*$/d' | sed ':a;N;$!ba;s/\n/,/g')
+    - echo "Build deb node..."
+    - echo "DEV_DEPENDS=${DEV_DEPENDS}"
+    - /tmp/build-package.sh $INSTALL_DIR ${PROJECT_NAME} ${PROJECT_VERSION} ${DEV_DEPENDS}
+    - echo "Copy deb package..."
+    - mv /opt/dev/*deb ${PACKAGES_DIR}
+  artifacts:
+    paths:
+    - $PACKAGES_DIR/  
+    expire_in: 2 hour
+
+.deploy_deb_prod_job:
+  stage: deploy
+  tags:
+    - docker
+  image: $DOCKER_PRODUCTION_IMAGE
+  script:
+    - rm -rf $PACKAGES_DIR
+    - mkdir -p $PACKAGES_DIR
+    # remove space, empty lines and add ',' between lines
+    - PROD_DEPENDS=$(sort -u /tmp/base_requirements.txt | sed 's! !!g' | sed -r '/^\s*$/d' | sed ':a;N;$!ba;s/\n/,/g')
+    - echo "Build deb node..."
+    - echo "PROD_DEPENDS=${PROD_DEPENDS}"
+    - /tmp/build-package.sh $INSTALL_DIR ${PROJECT_NAME} ${PROJECT_VERSION} ${PROD_DEPENDS}
+    - echo "Copy deb package..."
+    - mv /opt/prod/*deb ${PACKAGES_DIR}
+  artifacts:
+    paths:
+    - $PACKAGES_DIR/  
+    expire_in: 2 hour
+
+#---------------- auto build version ---------------------------
+auto_compile_job:
+  extends: .compile_job
+  when: always
+  only:
+    - tags
+
+auto_deploy_version__docker_job:
+  extends: .deploy_docker_job
+  when: on_success
+  variables:
+    OUTPUT_DOCKER_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  only:
+    - tags
+
+auto_deploy_version_deb_develop_job:
+  extends: .deploy_deb_dev_job
+  when: on_success
+  variables:
+    OUTPUT_DOCKER_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  only:
+    - tags
+
+auto_deploy_version_deb_prod_job:
+  extends: .deploy_deb_prod_job
+  when: on_success
+  variables:
+    OUTPUT_DOCKER_TAG: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+  only:
+    - tags
+
+#--------------- manual build other branches -----------------------
+rebuild_dependency:
+  extends: .build_base_docker_images
+  when: manual
+
+manual_compile_job:
+  extends: .compile_job
+  when: manual
+  except:
+    - tags
+
+manual_deploy_production_docker_job:
+  extends: .deploy_docker_job
+  when: on_success
+  except:
+    - tags
+
+manual_deploy_production_deb_develop_job:
+  extends: .deploy_deb_dev_job
+  when: on_success
+  except:
+    - tags
+
+manual_deploy_production_deb_prod_job:
+  extends: .deploy_deb_prod_job
+  when: on_success
+  except:
+    - tags
