@@ -6,30 +6,7 @@
 
 #include "api.h"
 #include "preview_storage.h"
-
-void calcuate_date()
-{
-    // TODO: move to utility
-    constexpr int64_t total_secs = 1554091228 % 86400;
-    constexpr int64_t secs = total_secs % 60;
-    constexpr int64_t total_min = total_secs / 60;
-    constexpr int64_t min = total_min % 60;
-    constexpr int64_t hour = total_min / 60;
-
-    std::cout << hour << " " << min << " " << secs << std::endl;
-}
-
-void print_map(int row, int column, int item_duration)
-{
-    int last_duration = 0;
-    for (int i=0; i<row; ++i) {
-        for (int j=0; j<column; ++j) {
-            std::cout << last_duration << " - " << last_duration + item_duration << ";";
-            last_duration += item_duration;
-        }
-        std::cout << std::endl;
-    }
-}
+#include "env_settings.h"
 
 void insert_test1(preview_storage* storage)
 {
@@ -58,12 +35,24 @@ void insert_test1(preview_storage* storage)
 
 int main()
 {
-    preview_storage* storage = new preview_storage("/tmp/preview-storage");
+    auto settings = new env_settings;
 
-//    insert_test1(storage);
+    auto [http_conf, http_ok] = settings->get_http_server_settings();
+    if (!http_ok) {
+        std::cerr << "couldn't load http settings" << std::endl;
+        return -1;
+    }
+
+    auto [storage_conf, storage_ok] = settings->get_preview_storage_settings();
+    if (!storage_ok) {
+        std::cerr << "couldn't load storage settings" << std::endl;
+        return -1;
+    }
+
+    preview_storage* storage = new preview_storage(storage_conf.path);
 
     api a(storage);
-    if (!a.start("10.110.3.43", 1025)) {
+    if (!a.start(http_conf.host, http_conf.port)) {
         return -1;
     }
 
