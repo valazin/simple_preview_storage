@@ -17,7 +17,7 @@ class preview_storage;
 class api
 {
 public:
-    explicit api(preview_storage* storage) noexcept;
+    explicit api(const std::shared_ptr<preview_storage> &storage) noexcept;
     ~api();
 
     bool start(const std::string& host, uint16_t port) noexcept;
@@ -55,7 +55,7 @@ private:
                                   const std::shared_ptr<req_context>& cxt) const noexcept;
 
 private:
-    preview_storage* _storage;
+    std::shared_ptr<preview_storage> _storage;
     std::unique_ptr<http::server> _server;
 };
 

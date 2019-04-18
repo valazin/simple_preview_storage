@@ -1,6 +1,7 @@
 #include <iostream>
 #include <cstring>
 #include <thread>
+#include <memory.h>
 
 #include <opencv2/imgcodecs.hpp>
 
@@ -35,7 +36,7 @@ void insert_test1(preview_storage* storage)
 
 int main()
 {
-    auto settings = new env_settings;
+    auto settings = std::make_unique<env_settings>();
 
     auto [http_conf, http_ok] = settings->get_http_server_settings();
     if (!http_ok) {
@@ -49,7 +50,7 @@ int main()
         return -1;
     }
 
-    preview_storage* storage = new preview_storage(storage_conf.path);
+    auto storage = std::make_shared<preview_storage>(storage_conf.path);
 
     api a(storage);
     if (!a.start(http_conf.host, http_conf.port)) {

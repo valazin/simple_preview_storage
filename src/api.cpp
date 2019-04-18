@@ -8,7 +8,7 @@
 
 using namespace std::placeholders;
 
-api::api(preview_storage *storage) noexcept :
+api::api(const std::shared_ptr<preview_storage> &storage) noexcept :
     _storage(storage)
 {
     _server = std::make_unique<http::server>();
