@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <ctime>
 
+#include <glog/logging.h>
 #include <opencv2/imgcodecs.hpp>
 #include <fstream>
 
@@ -17,7 +18,7 @@ preview_map_repository::preview_map_repository(const std::string& dir_path) noex
     if (!filesystem::dir_is_exist(dir_path)
         && !filesystem::create_path(dir_path))
     {
-        perror("Error create dir_path for preview_map_repository");
+        LOG(WARNING)<<"Error create dir_path for preview_map_repository";
     }
 }
 
@@ -67,8 +68,12 @@ preview_map_repository::load(const std::string &id, int64_t start_ut_msecs, cons
     const std::string meta_file_path = file_path + "_meta";
 
     auto [items_info, error] = load_preview_offsets_from_file(meta_file_path);
-    if (error != error_type::none_error)
+    if (error != error_type::none_error) {
         return {nullptr, std::vector<preview_item_info>(), error};
+    }
+    if (items_info.size()!=format.items) {
+        return {nullptr, std::vector<preview_item_info>(), error_type::error_parse_meta_info};
+    }
 
     auto [map, error_map] = load_preview_map_from_file(file_path, format, items_info);
     return {map, items_info, error_map};
@@ -150,10 +155,14 @@ preview_map_repository::load_preview_offsets_from_file(const std::string &file_p
     std::string text(data, data_size);
     for (auto s : string_utils::split_string(text, ';'))
     {
-        if (s=="null" || !string_utils::string_is_number(s))
-            result.push_back(preview_item_info{true, 0});
-        else
+        if (string_utils::string_is_number(s)){
             result.push_back(preview_item_info{false, std::stol(s)*1000});
+        } else if (s=="null") {
+            result.push_back(preview_item_info{true, 0});
+        } else {
+            LOG(WARNING)<<"item is no valid. bad data";
+        }
+        
     }
     return {result, error_type::none_error};
 }
@@ -227,9 +236,8 @@ std::tuple<char*, size_t, preview_map_repository::error_type>
 preview_map_repository::load_from_file(const std::string& file_path) noexcept
 {
     std::ifstream file(file_path, std::ios::in | std::ios::binary | std::ios::ate);
-    if (!file.is_open())
-    {
-        perror("open file to read");
+    if (!file.is_open()) {
+        LOG(WARNING) < <"open file to read: " << file_path;
         return {nullptr, 0, error_type::file_load_error};
     }
 
