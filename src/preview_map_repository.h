@@ -15,7 +15,8 @@ public:
         none_error,
         file_creating_error,
         image_encoding_error,
-        file_load_error
+        file_load_error,
+        error_parse_meta_info
     };
 
     explicit preview_map_repository(const std::string& dir_path) noexcept;
