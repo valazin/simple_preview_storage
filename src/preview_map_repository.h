@@ -31,9 +31,6 @@ public:
          int64_t start_ut_msecs,
          const preview_map_format& format) noexcept;
 
-    static std::vector<std::string> split_string(const std::string &text,
-                                                 char delimiter) noexcept;
-
 private:
     struct file_info
     {
@@ -45,7 +42,9 @@ private:
     static error_type save_preview_map_to_file(const std::shared_ptr<preview_map>& map,
                                                const std::string& file_path) noexcept;
     static std::tuple<std::shared_ptr<preview_map>, error_type>
-    load_preview_map_from_file(const std::string& file_path) noexcept;
+    load_preview_map_from_file(const std::string& file_path,
+                               const preview_map_format &format,
+                               const std::vector<preview_item_info> &items_info) noexcept;
 
     static error_type save_preview_offsets_to_file(const std::vector<preview_item_info>& items_info,
                                                    const std::string& file_path) noexcept;

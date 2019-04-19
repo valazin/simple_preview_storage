@@ -4,12 +4,13 @@
 #include <memory.h>
 
 #include <opencv2/imgcodecs.hpp>
+#include <glog/logging.h>
 
 #include "api.h"
 #include "preview_storage.h"
 #include "env_settings.h"
 
-void insert_test1(preview_storage* storage)
+void insert_test1(std::shared_ptr<preview_storage> storage)
 {
     int64_t start_ut_msecs = 2*(60 * 60 * 24 * 1000);
     const int64_t duration_msecs = 10 * 1000;
@@ -34,8 +35,12 @@ void insert_test1(preview_storage* storage)
     std::cout << "job done" << std::endl;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
+    //configure logging
+    google::InitGoogleLogging(argv[0]);
+    FLAGS_logtostderr = 1; //log all messages to console
+
     auto settings = std::make_unique<env_settings>();
 
     auto [http_conf, http_ok] = settings->get_http_server_settings();

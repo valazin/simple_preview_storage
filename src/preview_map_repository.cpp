@@ -9,11 +9,16 @@
 #include <fstream>
 
 #include "filesystem.h"
+#include "string_utils.h"
 
 preview_map_repository::preview_map_repository(const std::string& dir_path) noexcept :
       _dir_path(dir_path)
 {
-    // TODO: create dir
+    if (!filesystem::dir_is_exist(dir_path)
+        && !filesystem::create_path(dir_path))
+    {
+        perror("Error create dir_path for preview_map_repository");
+    }
 }
 
 preview_map_repository::error_type
@@ -48,28 +53,25 @@ preview_map_repository::save(const std::string& id,
 std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>, preview_map_repository::error_type>
 preview_map_repository::load(const std::string &id, int64_t start_ut_msecs, const preview_map_format &format) noexcept
 {
-    std::vector<preview_item_info> items_info;
-
     const file_info info = preview_file_info(id, start_ut_msecs, format);
     std::string dir_path = _dir_path;
     for (auto& dir : info.relative_dir_path) {
         dir_path += "/" + dir;
-        if (!filesystem::dir_is_exist(dir_path)) {
-            perror("directory not exist");
-            return {nullptr, items_info, error_type::file_load_error};
-        }
     }
+    if (!filesystem::dir_is_exist(dir_path)) {
+        perror("directory not exist");
+        return {nullptr, std::vector<preview_item_info>(), error_type::file_load_error};
+    }
+
     const std::string file_path = dir_path + "/" + info.file_name;
     const std::string meta_file_path = file_path + "_meta";
 
-    auto [map, error] = load_preview_map_from_file(file_path);
-    if (error == error_type::none_error) {
-        auto result = load_preview_offsets_from_file(meta_file_path);
-        items_info = std::get<0>(result);
-        error = std::get<1>(result);
-    }
+    auto [items_info, error] = load_preview_offsets_from_file(meta_file_path);
+    if (error != error_type::none_error)
+        return {nullptr, std::vector<preview_item_info>(), error};
 
-    return {map, items_info, error};
+    auto [map, error_map] = load_preview_map_from_file(file_path, format, items_info);
+    return {map, items_info, error_map};
 }
 
 preview_map_repository::error_type
@@ -97,9 +99,25 @@ preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_m
 }
 
 std::tuple<std::shared_ptr<preview_map>, preview_map_repository::error_type>
-preview_map_repository::load_preview_map_from_file(const std::string &file_path) noexcept
+preview_map_repository::load_preview_map_from_file(const std::string &file_path,
+                                                   const preview_map_format &format,
+                                                   const std::vector<preview_item_info> &items_info) noexcept
 {
+    size_t items_count(0);
+    for(auto i : items_info)
+    {
+        if (!i.empty)
+            ++items_count;
+    }
+    cv::Mat image = cv::imread(file_path.c_str(), cv::IMREAD_COLOR);
+    auto result = std::make_shared<preview_map>(format.rows,
+                                                format.cols,
+                                                format.item_width_px,
+                                                format.item_height_px,
+                                                reinterpret_cast<char*>(image.data),
+                                                items_count);
 
+    return {result, error_type::none_error};
 }
 
 preview_map_repository::error_type
@@ -121,23 +139,6 @@ preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_i
     return save_to_file(text.data(), text.size(), file_path);
 }
 
-std::vector<std::string> preview_map_repository::split_string(const std::string &text, char delimiter) noexcept
-{
-    std::vector<std::string> strList;
-    size_t prevPos=0;
-    for(size_t pos=0; pos<text.size(); ++pos)
-    {
-        if (text[pos]==delimiter)
-        {
-            strList.push_back(std::string(text, prevPos, pos-prevPos));
-            prevPos=pos+1;
-        }
-    }
-    if (prevPos>0)
-        strList.push_back(std::string(text, prevPos, text.size()-prevPos));
-    return strList;
-}
-
 std::tuple<std::vector<preview_item_info>, preview_map_repository::error_type>
 preview_map_repository::load_preview_offsets_from_file(const std::string &file_path) noexcept
 {
@@ -147,9 +148,9 @@ preview_map_repository::load_preview_offsets_from_file(const std::string &file_p
         return {result, error};
 
     std::string text(data, data_size);
-    for (auto s : split_string(text, ';'))
+    for (auto s : string_utils::split_string(text, ';'))
     {
-        if (s=="null")
+        if (s=="null" || !string_utils::string_is_number(s))
             result.push_back(preview_item_info{true, 0});
         else
             result.push_back(preview_item_info{false, std::stol(s)*1000});
