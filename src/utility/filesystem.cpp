@@ -1,4 +1,5 @@
 #include "filesystem.h"
+#include "string_utils.h"
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -38,4 +39,23 @@ bool filesystem::create_directory(const std::string& path)
         perror("mkdir");
     }
     return false;
+}
+
+bool filesystem::create_path(const std::string& absolute_path)
+{
+    if (!dir_is_exist(absolute_path)) {
+        auto dirs = string_utils::split_string(absolute_path, '/');
+        std::string s;
+        for (auto&& dir : dirs) {
+            if (dir.empty()) {
+                continue;
+            }
+            s += "/" + dir;
+            if (!filesystem::dir_is_exist(s)
+                && !filesystem::create_directory(s)) {
+                return false;
+            }
+        }
+    }
+    return true;
 }

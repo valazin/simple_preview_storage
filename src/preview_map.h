@@ -13,6 +13,12 @@ public:
                 size_t cols,
                 size_t item_width_px,
                 size_t item_height_px) noexcept;
+    preview_map(size_t rows,
+                size_t cols,
+                size_t item_width_px,
+                size_t item_height_px,
+                const char *buff,
+                size_t items_count) noexcept;
     ~preview_map();
 
     bool is_full() const noexcept;
