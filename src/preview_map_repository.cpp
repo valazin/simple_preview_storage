@@ -5,9 +5,10 @@
 #include <unistd.h>
 #include <ctime>
 
-#include <glog/logging.h>
-#include <opencv2/imgcodecs.hpp>
 #include <fstream>
+#include <iostream>
+
+#include <opencv2/imgcodecs.hpp>
 
 #include "filesystem.h"
 #include "string_utils.h"
@@ -16,9 +17,8 @@ preview_map_repository::preview_map_repository(const std::string& dir_path) noex
       _dir_path(dir_path)
 {
     if (!filesystem::dir_is_exist(dir_path)
-        && !filesystem::create_path(dir_path))
-    {
-        LOG(WARNING)<<"Error create dir_path for preview_map_repository";
+            && !filesystem::create_path(dir_path)) {
+        std::cerr << "Error create dir_path for preview_map_repository";
     }
 }
 
@@ -60,7 +60,7 @@ preview_map_repository::load(const std::string &id, int64_t start_ut_msecs, cons
         dir_path += "/" + dir;
     }
     if (!filesystem::dir_is_exist(dir_path)) {
-        perror("directory not exist");
+        std::cerr << "couldn't load from " << dir_path;
         return {nullptr, std::vector<preview_item_info>(), error_type::file_load_error};
     }
 
@@ -145,22 +145,23 @@ preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_i
 }
 
 std::tuple<std::vector<preview_item_info>, preview_map_repository::error_type>
-preview_map_repository::load_preview_offsets_from_file(const std::string &file_path) noexcept
+preview_map_repository::load_preview_offsets_from_file(const std::string& file_path) noexcept
 {
     std::vector<preview_item_info> result;
     auto [data, data_size, error] = load_from_file(file_path);
-    if (error!=error_type::none_error)
+    if (error!=error_type::none_error) {
         return {result, error};
+    }
 
     std::string text(data, data_size);
-    for (auto s : string_utils::split_string(text, ';'))
-    {
-        if (string_utils::string_is_number(s)){
+    for (auto s : string_utils::split_string(text, ';')) {
+        if (string_utils::string_is_number(s)) {
             result.push_back(preview_item_info{false, std::stol(s)*1000});
         } else if (s=="null") {
             result.push_back(preview_item_info{true, 0});
         } else {
-            LOG(WARNING)<<"item is no valid. bad data";
+            std::cerr << "item is no valid. bad data";
+            result.push_back(preview_item_info{true, 0});
         }
         
     }
@@ -237,7 +238,7 @@ preview_map_repository::load_from_file(const std::string& file_path) noexcept
 {
     std::ifstream file(file_path, std::ios::in | std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        LOG(WARNING) < <"open file to read: " << file_path;
+        std::cerr << "open file to read: " << file_path;
         return {nullptr, 0, error_type::file_load_error};
     }
 
