@@ -41,19 +41,18 @@ bool filesystem::create_directory(const std::string& path)
     return false;
 }
 
-bool filesystem::create_path(const std::string &absolute_path)
+bool filesystem::create_path(const std::string& absolute_path)
 {
-    if (!dir_is_exist(absolute_path))
-    {
+    if (!dir_is_exist(absolute_path)) {
         auto dirs = string_utils::split_string(absolute_path, '/');
         std::string s;
-        for (auto& dir : dirs) {
-            if (dir.empty())
+        for (auto&& dir : dirs) {
+            if (dir.empty()) {
                 continue;
+            }
             s += "/" + dir;
             if (!filesystem::dir_is_exist(s)
                 && !filesystem::create_directory(s)) {
-                perror("Error create dir_path for preview_map_repository");
                 return false;
             }
         }
