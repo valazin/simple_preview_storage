@@ -34,6 +34,7 @@ preview_map::preview_map(size_t rows,
     _buff_was_allocated(true)
 {
     _buff = new char[_map_size];
+    // TODO: use cv::mat?
     memcpy(_buff, buff, _map_size);
 }
 

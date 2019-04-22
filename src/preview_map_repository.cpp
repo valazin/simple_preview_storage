@@ -1,10 +1,10 @@
 #include "preview_map_repository.h"
 
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <ctime>
+#include <sys/stat.h>
 
+#include <ctime>
 #include <fstream>
 #include <iostream>
 
@@ -16,9 +16,8 @@
 preview_map_repository::preview_map_repository(const std::string& dir_path) noexcept :
       _dir_path(dir_path)
 {
-    if (!filesystem::dir_is_exist(dir_path)
-            && !filesystem::create_path(dir_path)) {
-        std::cerr << "Error create dir_path for preview_map_repository";
+    if (filesystem::create_path(dir_path)) {
+        std::cerr << "error create dir_path for preview_map_repository";
     }
 }
 
@@ -43,16 +42,21 @@ preview_map_repository::save(const std::string& id,
     const std::string file_path = dir_path + "/" + info.file_name;
     const std::string meta_file_path = file_path + "_meta";
 
-    error_type error = save_preview_map_to_file(map, file_path);
+    error_type error = save_map_to_file(map, file_path);
     if (error == error_type::none_error) {
-        error = save_preview_offsets_to_file(items_info, meta_file_path);
+        error = save_offsets_to_file(items_info, meta_file_path);
     }
 
     return error;
 }
 
-std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>, preview_map_repository::error_type>
-preview_map_repository::load(const std::string &id, int64_t start_ut_msecs, const preview_map_format &format) noexcept
+std::tuple<
+std::shared_ptr<preview_map>,
+std::vector<preview_item_info>,
+preview_map_repository::error_type>
+preview_map_repository::load(const std::string &id,
+                             int64_t start_ut_msecs,
+                             const preview_map_format &format) noexcept
 {
     const file_info info = preview_file_info(id, start_ut_msecs, format);
     std::string dir_path = _dir_path;
@@ -61,27 +65,27 @@ preview_map_repository::load(const std::string &id, int64_t start_ut_msecs, cons
     }
     if (!filesystem::dir_is_exist(dir_path)) {
         std::cerr << "couldn't load from " << dir_path;
-        return {nullptr, std::vector<preview_item_info>(), error_type::file_load_error};
+        return {nullptr, {}, error_type::file_load_error};
     }
 
     const std::string file_path = dir_path + "/" + info.file_name;
     const std::string meta_file_path = file_path + "_meta";
 
-    auto [items_info, error] = load_preview_offsets_from_file(meta_file_path);
+    auto [items_info, error] = load_offsets_from_file(meta_file_path);
     if (error != error_type::none_error) {
-        return {nullptr, std::vector<preview_item_info>(), error};
+        return {nullptr, {}, error};
     }
     if (items_info.size()!=format.items) {
-        return {nullptr, std::vector<preview_item_info>(), error_type::error_parse_meta_info};
+        return {nullptr, {}, error_type::error_parse_meta_info};
     }
 
-    auto [map, error_map] = load_preview_map_from_file(file_path, format, items_info);
+    auto [map, error_map] = load_map_from_file(file_path, format, items_info);
     return {map, items_info, error_map};
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_map> &map,
-                                                 const std::string &file_path) noexcept
+preview_map_repository::save_map_to_file(const std::shared_ptr<preview_map> &map,
+                                         const std::string &file_path) noexcept
 {
     std::vector<uchar> out_buff(map->size(), 0);
     cv::Mat in_mat(static_cast<int>(map->height_px()),
@@ -104,9 +108,9 @@ preview_map_repository::save_preview_map_to_file(const std::shared_ptr<preview_m
 }
 
 std::tuple<std::shared_ptr<preview_map>, preview_map_repository::error_type>
-preview_map_repository::load_preview_map_from_file(const std::string &file_path,
-                                                   const preview_map_format &format,
-                                                   const std::vector<preview_item_info> &items_info) noexcept
+preview_map_repository::load_map_from_file(const std::string& file_path,
+                                           const preview_map_format& format,
+                                           const std::vector<preview_item_info>& items_info) noexcept
 {
     size_t items_count(0);
     for(auto i : items_info)
@@ -126,8 +130,8 @@ preview_map_repository::load_preview_map_from_file(const std::string &file_path,
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_item_info>& items_info,
-                                                     const std::string& file_path) noexcept
+preview_map_repository::save_offsets_to_file(const std::vector<preview_item_info>& items_info,
+                                             const std::string& file_path) noexcept
 {
     std::string text;
     for (size_t i=0; i<items_info.size(); ++i) {
@@ -145,11 +149,11 @@ preview_map_repository::save_preview_offsets_to_file(const std::vector<preview_i
 }
 
 std::tuple<std::vector<preview_item_info>, preview_map_repository::error_type>
-preview_map_repository::load_preview_offsets_from_file(const std::string& file_path) noexcept
+preview_map_repository::load_offsets_from_file(const std::string& file_path) noexcept
 {
     std::vector<preview_item_info> result;
     auto [data, data_size, error] = load_from_file(file_path);
-    if (error!=error_type::none_error) {
+    if (error != error_type::none_error) {
         return {result, error};
     }
 
@@ -160,11 +164,11 @@ preview_map_repository::load_preview_offsets_from_file(const std::string& file_p
         } else if (s=="null") {
             result.push_back(preview_item_info{true, 0});
         } else {
-            std::cerr << "item is no valid. bad data";
+            std::cerr << "item is not valid. bad data";
             result.push_back(preview_item_info{true, 0});
         }
-        
     }
+
     return {result, error_type::none_error};
 }
 
@@ -231,7 +235,6 @@ preview_map_repository::save_to_file(const void *data,
         return error_type::file_creating_error;
     }
 }
-
 
 std::tuple<char*, size_t, preview_map_repository::error_type>
 preview_map_repository::load_from_file(const std::string& file_path) noexcept
