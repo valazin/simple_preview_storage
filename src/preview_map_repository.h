@@ -35,7 +35,7 @@ public:
 private:
     struct file_info
     {
-        const std::vector<std::string> relative_dir_path;
+        const std::vector<std::string> relative_dir_paths;
         const std::string file_name;
     };
 
@@ -44,11 +44,11 @@ private:
                                        const std::string& file_path) noexcept;
     static std::tuple<std::shared_ptr<preview_map>, error_type>
     load_map_from_file(const std::string& file_path,
-                       const preview_map_format& format,
-                       const std::vector<preview_item_info>& items_info) noexcept;
+                       const preview_map_format& format) noexcept;
 
-    static error_type save_offsets_to_file(const std::vector<preview_item_info>& items_info,
-                                           const std::string& file_path) noexcept;
+    static error_type
+    save_offsets_to_file(const std::vector<preview_item_info>& items_info,
+                         const std::string& file_path) noexcept;
     static std::tuple<std::vector<preview_item_info>, error_type>
     load_offsets_from_file(const std::string& file_path) noexcept;
 

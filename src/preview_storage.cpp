@@ -4,8 +4,10 @@
 
 #include "preview_map_format.h"
 
-preview_storage::preview_storage(const std::string &dir_path) noexcept :
-    _work_dir_path(dir_path)
+preview_storage::preview_storage(const std::string &dir_path,
+                                 int64_t map_flush_duration_msecs) noexcept :
+    _work_dir_path(dir_path),
+    _map_flush_duration_msecs(map_flush_duration_msecs)
 {
     _repository = std::make_shared<preview_map_repository>(dir_path);
 }
@@ -32,14 +34,26 @@ bool preview_storage::add_preview(const std::string& id,
             sub_1hour
         };
 
-        builder = std::make_shared<preview_map_builder>(main_10sec, sub_formats);
+        builder = std::make_shared<preview_map_builder>(main_10sec,
+                                                        sub_formats,
+                                                        _map_flush_duration_msecs);
 
-        builder->MapBuildedHandler = [id, this](
+        builder->SaveMapHandler = [id, this](
                 int64_t start_ut_msecs,
                 const preview_map_format& format,
                 std::shared_ptr<preview_map> map,
                 const std::vector<preview_item_info>& items_info) {
             _repository->save(id, start_ut_msecs, format, map, items_info);
+        };
+
+        builder->LoadMapHandler = [id, this] (
+                int64_t start_ut_msecs,
+                const preview_map_format& format) -> std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>> {
+            auto [map, items_info, error] = _repository->load(id, start_ut_msecs, format);
+            if (error != preview_map_repository::error_type::none_error) {
+                return {map, items_info};
+            }
+            return {nullptr, {}};
         };
 
         _builders.insert({id, builder});

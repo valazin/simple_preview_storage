@@ -17,11 +17,8 @@ public:
                 size_t cols,
                 size_t item_width_px,
                 size_t item_height_px,
-                const char *buff,
-                size_t items_count) noexcept;
+                const char* buff) noexcept;
     ~preview_map();
-
-    bool is_full() const noexcept;
 
     const char* data() const noexcept;
     size_t size() const noexcept;

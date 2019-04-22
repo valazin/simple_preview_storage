@@ -6,7 +6,9 @@
 #include <opencv2/imgcodecs.hpp>
 
 preview_map_builder::preview_map_builder(const preview_map_format& main_format,
-                                         const std::vector<preview_map_format>& sub_formats) noexcept :
+                                         const std::vector<preview_map_format>& sub_formats,
+                                         int64_t flush_duration_msecs) noexcept :
+    _flush_duration_msecs(flush_duration_msecs),
     _main_format{main_format, {}}
 {
     // TODO: validate sub_formats
@@ -136,8 +138,6 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         format.maps.insert({map_number, map});
     }
 
-    // TODO: sometimes flush to disk
-
     preview_item_info& item_info = map->items_info[item_number];
 
     if (item_info.empty || abs(item_info.offset_msecs) > abs(item_offset_msecs)) {
@@ -147,16 +147,31 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
             ++map->item_counter;
 
-            if (map->item_counter >= format.format.items && MapBuildedHandler) {
+            const int64_t current_map_duration_msecs =
+                    static_cast<int64_t>(map->item_counter) * format.format.item_duration_msecs;
+
+            bool mapIsBuilded = map->item_counter >= format.format.items;
+            bool mapIsReadyToFlush = false;
+            if (current_map_duration_msecs/_flush_duration_msecs
+                    > static_cast<int64_t>(map->flush_counter)) {
+                mapIsReadyToFlush = true;
+            }
+            bool mapIsReadyToSave = mapIsBuilded || mapIsReadyToFlush;
+
+            if (mapIsReadyToSave && SaveMapHandler) {
                 int64_t map_start_ut_msecs = static_cast<int64_t>(
                             (items - item_number)) * format.format.item_duration_msecs;
 
-                MapBuildedHandler(map_start_ut_msecs,
-                                  format.format,
-                                  map->map,
-                                  map->items_info);
+                SaveMapHandler(map_start_ut_msecs,
+                               format.format,
+                               map->map,
+                               map->items_info);
 
-                format.maps.erase(search);
+                ++map->flush_counter;
+
+                if (mapIsBuilded) {
+                    format.maps.erase(search);
+                }
             }
         }
     }

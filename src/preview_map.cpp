@@ -21,8 +21,7 @@ preview_map::preview_map(size_t rows,
                          size_t cols,
                          size_t item_width_px,
                          size_t item_height_px,
-                         const char *buff,
-                         size_t items_count) noexcept:
+                         const char* buff) noexcept:
     _rows(rows),
     _cols(cols),
     _items(_rows*_cols),
@@ -30,7 +29,6 @@ preview_map::preview_map(size_t rows,
     _item_height_px(item_height_px),
     _item_size(item_width_px * item_height_px * 3),
     _map_size(_item_size * _items),
-    _added_number_of_previews(items_count),
     _buff_was_allocated(true)
 {
     _buff = new char[_map_size];
@@ -43,11 +41,6 @@ preview_map::~preview_map()
     if (_buff != nullptr) {
         delete[] _buff;
     }
-}
-
-bool preview_map::is_full() const noexcept
-{
-    return (_added_number_of_previews == _items);
 }
 
 const char *preview_map::data() const noexcept
@@ -100,8 +93,6 @@ bool preview_map::insert(size_t number,
         memcpy(_buff + pos, buff + (3 * i * _item_width_px), 3 * _item_width_px);
         pos += 3 * _cols * _item_width_px;
     }
-
-    ++_added_number_of_previews;
 
     return true;
 }

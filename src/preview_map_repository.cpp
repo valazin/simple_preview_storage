@@ -16,7 +16,7 @@
 preview_map_repository::preview_map_repository(const std::string& dir_path) noexcept :
       _dir_path(dir_path)
 {
-    if (filesystem::create_path(dir_path)) {
+    if (!filesystem::create_path(dir_path)) {
         std::cerr << "error create dir_path for preview_map_repository";
     }
 }
@@ -31,7 +31,7 @@ preview_map_repository::save(const std::string& id,
     const file_info info = preview_file_info(id, start_ut_msecs, format);
 
     std::string dir_path = _dir_path;
-    for (auto& dir : info.relative_dir_path) {
+    for (auto& dir : info.relative_dir_paths) {
         dir_path += "/" + dir;
         if (!filesystem::dir_is_exist(dir_path)
             && !filesystem::create_directory(dir_path)) {
@@ -60,7 +60,7 @@ preview_map_repository::load(const std::string &id,
 {
     const file_info info = preview_file_info(id, start_ut_msecs, format);
     std::string dir_path = _dir_path;
-    for (auto& dir : info.relative_dir_path) {
+    for (auto& dir : info.relative_dir_paths) {
         dir_path += "/" + dir;
     }
     if (!filesystem::dir_is_exist(dir_path)) {
@@ -79,7 +79,7 @@ preview_map_repository::load(const std::string &id,
         return {nullptr, {}, error_type::error_parse_meta_info};
     }
 
-    auto [map, error_map] = load_map_from_file(file_path, format, items_info);
+    auto [map, error_map] = load_map_from_file(file_path, format);
     return {map, items_info, error_map};
 }
 
@@ -109,22 +109,14 @@ preview_map_repository::save_map_to_file(const std::shared_ptr<preview_map> &map
 
 std::tuple<std::shared_ptr<preview_map>, preview_map_repository::error_type>
 preview_map_repository::load_map_from_file(const std::string& file_path,
-                                           const preview_map_format& format,
-                                           const std::vector<preview_item_info>& items_info) noexcept
+                                           const preview_map_format& format) noexcept
 {
-    size_t items_count(0);
-    for(auto i : items_info)
-    {
-        if (!i.empty)
-            ++items_count;
-    }
     cv::Mat image = cv::imread(file_path.c_str(), cv::IMREAD_COLOR);
     auto result = std::make_shared<preview_map>(format.rows,
                                                 format.cols,
                                                 format.item_width_px,
                                                 format.item_height_px,
-                                                reinterpret_cast<char*>(image.data),
-                                                items_count);
+                                                reinterpret_cast<char*>(image.data));
 
     return {result, error_type::none_error};
 }

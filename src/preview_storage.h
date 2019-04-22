@@ -13,7 +13,8 @@
 class preview_storage
 {
 public:
-    explicit preview_storage(const std::string& dir_path) noexcept;
+    preview_storage(const std::string& dir_path,
+                    int64_t map_flush_duration_msecs) noexcept;
 
     bool add_preview(const std::string& id,
                      int64_t start_ut_msecs,
@@ -25,6 +26,7 @@ public:
 
 private:
     const std::string _work_dir_path;
+    const int64_t _map_flush_duration_msecs = 0;
     std::shared_ptr<preview_map_repository> _repository;
     std::unordered_map<std::string, std::shared_ptr<preview_map_builder>> _builders;
 };

@@ -35,5 +35,15 @@ env_settings::get_preview_storage_settings() const
     }
     result.path = std::string(cstr_path);
 
+    const char* cstr_flush_duration = std::getenv("MAP_FLUSH_DURATION_MSECS");
+    if (cstr_flush_duration == nullptr) {
+        return {result, false};
+    }
+    auto [flush_duration, is_ok] = cstr_to_int<int64_t>(cstr_flush_duration);
+    if (!is_ok) {
+        return {result, false};
+    }
+    result.map_flush_duration_msecs = static_cast<int64_t>(flush_duration);
+
     return {result, true};
 }

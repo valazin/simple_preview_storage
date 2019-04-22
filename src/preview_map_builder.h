@@ -7,6 +7,7 @@
 #include "preview_map.h"
 #include "preview_map_format.h"
 #include "preview_item_info.h"
+#include "preview_map_repository.h"
 
 class preview_map_builder
 {
@@ -17,13 +18,21 @@ public:
         invalid_arguments
     };
 
-    std::function<void (int64_t start_ut_msecs,
-                        const preview_map_format& format,
-                        std::shared_ptr<preview_map> map,
-                        const std::vector<preview_item_info>& items_info)> MapBuildedHandler;
+    std::function<
+    void (int64_t start_ut_msecs,
+          const preview_map_format& format,
+          std::shared_ptr<preview_map> map,
+          const std::vector<preview_item_info>& items_info)
+    > SaveMapHandler;
+
+    std::function<
+    std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>>
+    (int64_t start_ut_msecs, const preview_map_format& format )
+    > LoadMapHandler;
 
     preview_map_builder(const preview_map_format& main_format,
-                        const std::vector<preview_map_format>& sub_formats) noexcept;
+                        const std::vector<preview_map_format>& sub_formats,
+                        int64_t flush_duration_msecs) noexcept;
 
     error_type add_preview(int64_t start_ut_msecs,
                            int64_t duration_msecs,
@@ -36,6 +45,7 @@ private:
     struct private_map
     {
         size_t item_counter = 0;
+        size_t flush_counter = 0;
         std::shared_ptr<preview_map> map;
         std::vector<preview_item_info> items_info;
     };
@@ -53,6 +63,7 @@ private:
                 private_format& format) noexcept;
 
 private:
+    const int64_t  _flush_duration_msecs = 0;
     private_format _main_format;
     std::vector<private_format> _sub_formats;
 };

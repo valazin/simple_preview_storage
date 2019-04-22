@@ -3,7 +3,6 @@
 #include <thread>
 #include <memory.h>
 
-#include <opencv2/imgcodecs.hpp>
 #include <glog/logging.h>
 
 #include "api.h"
@@ -55,7 +54,8 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    auto storage = std::make_shared<preview_storage>(storage_conf.path);
+    auto storage = std::make_shared<preview_storage>(storage_conf.path,
+                                                     storage_conf.map_flush_duration_msecs);
 
     api a(storage);
     if (!a.start(http_conf.host, http_conf.port)) {
