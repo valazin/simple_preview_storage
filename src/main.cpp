@@ -72,12 +72,9 @@ int main(int argc, char* argv[])
         return -1;
     }
 
-    insert_test1(storage);
-
     while (true) {
-        // TODO: flush none full maps if timeout
         std::this_thread::sleep_for(std::chrono::seconds(60));
     }
 
-    return  0;
+    return 0;
 }

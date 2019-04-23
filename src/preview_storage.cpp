@@ -96,8 +96,6 @@ void preview_storage::carbage_collector_loop() noexcept
     while (_is_running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-        std::cout << "start carbage" << std::endl;
-
         size_t removed_maps = 0;
 
         auto i = _builders.begin();
@@ -119,6 +117,9 @@ void preview_storage::carbage_collector_loop() noexcept
             }
         }
 
-        std::cout << "stop carbage: removed " << removed_maps << " maps" << std::endl;
+        if (removed_maps > 0) {
+            std::cout << removed_maps << " maps were released by timeout" << std::endl;
+        }
+
     }
 }
