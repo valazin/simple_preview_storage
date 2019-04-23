@@ -85,6 +85,22 @@ bool preview_storage::add_preview(const std::string& id,
     return true;
 }
 
+std::map<std::string, std::string> preview_storage::get_metrics() const noexcept
+{
+    size_t active_maps_count = 0;
+    auto i = _builders.begin();
+    while (i != _builders.end()) {
+        active_maps_count += i->second->builder->count();
+        ++i;
+    }
+
+    std::map<std::string, std::string> res;
+    res.insert({"active_maps_count", std::to_string(active_maps_count)});
+    res.insert({"active_builders_count", std::to_string(_builders.size())});
+    res.insert({"force_released_maps_count", std::to_string(_force_released_maps_count)});
+    return res;
+}
+
 void preview_storage::start()
 {
     _is_running = true;
@@ -96,7 +112,7 @@ void preview_storage::carbage_collector_loop() noexcept
     while (_is_running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-        size_t removed_maps = 0;
+        size_t released_maps = 0;
 
         auto i = _builders.begin();
         while (i != _builders.end()) {
@@ -105,7 +121,7 @@ void preview_storage::carbage_collector_loop() noexcept
             i->second->mutex.unlock();
 
             if (error == preview_map_builder::error_type::none_error) {
-                removed_maps += count;
+                released_maps += count;
             }
 
             if (i->second->builder->empty()) {
@@ -117,9 +133,9 @@ void preview_storage::carbage_collector_loop() noexcept
             }
         }
 
-        if (removed_maps > 0) {
-            std::cout << removed_maps << " maps were released by timeout" << std::endl;
+        if (released_maps > 0) {
+            _force_released_maps_count += released_maps;
+            std::cout << released_maps << " maps were released by timeout" << std::endl;
         }
-
     }
 }

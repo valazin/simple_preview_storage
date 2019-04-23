@@ -26,7 +26,8 @@ private:
     enum method
     {
         undefined,
-        post_preview
+        post_preview,
+        get_metrics
     };
 
     struct req_context

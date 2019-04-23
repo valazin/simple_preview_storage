@@ -39,7 +39,6 @@ void insert_test1(std::shared_ptr<preview_storage> storage)
     std::cout << "job done" << std::endl;
 }
 
-//need metrics
 //need tets cases
 
 int main(int argc, char* argv[])

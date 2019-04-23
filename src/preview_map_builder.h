@@ -42,6 +42,7 @@ public:
                            size_t data_size) noexcept;
 
     bool empty() const noexcept;
+    size_t count() const noexcept;
 
     std::tuple<size_t, error_type>
     release_maps(int64_t unmodified_secs) noexcept;

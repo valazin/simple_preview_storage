@@ -109,6 +109,15 @@ bool preview_map_builder::empty() const noexcept
     }
 }
 
+size_t preview_map_builder::count() const noexcept
+{
+    size_t res = _main_format.maps.size();
+    for (auto&& sub_format : _sub_formats) {
+        res += sub_format.maps.size();
+    }
+    return res;
+}
+
 std::tuple<size_t, preview_map_builder::error_type>
 preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
 {

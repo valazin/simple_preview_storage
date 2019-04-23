@@ -99,6 +99,19 @@ http::response api::handle_request(std::shared_ptr<http::request> req) noexcept
         }
         break;
     }
+    case method::get_metrics: {
+        std::string metrics_txt;
+
+        auto metrics = _storage->get_metrics();
+        auto i = metrics.begin();
+        while (i != metrics.end()) {
+            metrics_txt.append(i->first + ": " + i->second + "\n");
+            ++i;
+        }
+
+        resp.body_str = metrics_txt;
+        break;
+    }
     case method::undefined: {
         resp.code = 500;
         break;
@@ -128,7 +141,13 @@ int api::fetch_context_from_uri(http::request_method method,
         break;
     }
     case http::request_method::get:
-        return 404;
+        if (path_items.size() == 1) {
+            if (path_items[0].compare("metrics") == 0) {
+                cxt->method = method::get_metrics;
+                return 0;
+            }
+        }
+        break;
     case http::request_method::undefined:
         return 500;
     }

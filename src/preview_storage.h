@@ -2,6 +2,7 @@
 #define PREVIEW_STORAGE_H
 
 #include <cstdint>
+#include <map>
 #include <vector>
 #include <memory>
 #include <mutex>
@@ -29,6 +30,8 @@ public:
                      const char* data,
                      size_t data_size) noexcept;
 
+    std::map<std::string, std::string> get_metrics() const noexcept;
+
     void start();
 
 private:
@@ -46,12 +49,15 @@ private:
     const int64_t _map_flush_timeout_secs = 0;
     const int64_t _map_release_timeout_secs = 0;
 
+    std::shared_ptr<preview_map_repository> _repository;
+
+    std::mutex _builders_mutex;
+    std::unordered_map<std::string, std::shared_ptr<private_builder>> _builders;
+
     std::atomic<bool> _is_running = false;
     std::thread _garbage_thread;
 
-    std::shared_ptr<preview_map_repository> _repository;
-    std::mutex _builders_mutex;
-    std::unordered_map<std::string, std::shared_ptr<private_builder>> _builders;
+    std::atomic<size_t> _force_released_maps_count = 0;
 };
 
 #endif // PREVIEW_STORAGE_H
