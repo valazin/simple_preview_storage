@@ -129,10 +129,8 @@ preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
                                    map->map,
                                    map->items_info);
                 }
-                format.maps.erase(i);
+                i = format.maps.erase(i);
                 ++res;
-                i = format.maps.begin();
-
             } else {
                 ++i;
             }

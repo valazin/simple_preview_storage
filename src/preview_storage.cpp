@@ -88,10 +88,10 @@ bool preview_storage::add_preview(const std::string& id,
 void preview_storage::start()
 {
     _is_running = true;
-    _garbage_thread = std::thread(&preview_storage::carbage_loop, this);
+    _garbage_thread = std::thread(&preview_storage::carbage_collector_loop, this);
 }
 
-void preview_storage::carbage_loop() noexcept
+void preview_storage::carbage_collector_loop() noexcept
 {
     while (_is_running) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -112,7 +112,7 @@ void preview_storage::carbage_loop() noexcept
 
             if (i->second->builder->empty()) {
                 _builders_mutex.lock();
-                _builders.erase(i);
+                i = _builders.erase(i);
                 _builders_mutex.unlock();
             } else {
                 ++i;

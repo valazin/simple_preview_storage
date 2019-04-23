@@ -39,7 +39,7 @@ private:
     };
 
 private:
-    void carbage_loop() noexcept;
+    void carbage_collector_loop() noexcept;
 
 private:
     const std::string _work_dir_path;
