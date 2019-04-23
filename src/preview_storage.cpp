@@ -61,7 +61,8 @@ bool preview_storage::add_preview(const std::string& id,
                 int64_t start_ut_msecs,
                 const preview_map_format& format) -> std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>> {
             auto [map, items_info, error] = _repository->load(id, start_ut_msecs, format);
-            if (error != preview_map_repository::error_type::none_error) {
+            if (error == preview_map_repository::error_type::none_error) {
+                ++_load_from_disk_maps_count;
                 return {map, items_info};
             }
             return {nullptr, {}};
@@ -98,6 +99,7 @@ std::map<std::string, std::string> preview_storage::get_metrics() const noexcept
     res.insert({"active_maps_count", std::to_string(active_maps_count)});
     res.insert({"active_builders_count", std::to_string(_builders.size())});
     res.insert({"force_released_maps_count", std::to_string(_force_released_maps_count)});
+    res.insert({"load_from_disk_maps_count", std::to_string(_load_from_disk_maps_count)});
     return res;
 }
 

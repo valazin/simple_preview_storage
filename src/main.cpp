@@ -20,8 +20,8 @@ void insert_test1(std::shared_ptr<preview_storage> storage)
     const int color_step = 255 / 30;
 
     // TODO: test without shared ptr
-    for (int i=0; i<40000; ++i) {
-        if (i % 6 == 0) {
+    for (int i=0; i<30000; ++i) {
+        if (i % 9 == 0) {
             start_ut_msecs += duration_msecs;
             continue;
         }

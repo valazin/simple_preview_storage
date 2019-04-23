@@ -166,6 +166,8 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                 start_ut_msecs / format.format.item_duration_msecs);
     size_t map_number = items / format.format.items;
     size_t item_number = items % format.format.items;
+    const int64_t map_start_ut_msecs = static_cast<int64_t>((items - item_number))
+            * format.format.item_duration_msecs;
 
     int64_t item_offset_msecs =
             start_ut_msecs % format.format.item_duration_msecs;
@@ -179,26 +181,34 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         item_offset_msecs -= format.format.item_duration_msecs;
     }
 
-    // TODO: try load from repository
-
     std::shared_ptr<private_map> map;
     auto search = format.maps.find(map_number);
     if (search != format.maps.end()) {
         map = search->second;
     } else {
         map = std::make_shared<private_map>();
-        map->start_ut_msecs = static_cast<int64_t>((items - item_number))
-                * format.format.item_duration_msecs;
+        map->start_ut_msecs = map_start_ut_msecs;
 
-        map->map = std::make_shared<preview_map>(format.format.rows,
-                                                 format.format.cols,
-                                                 format.format.item_width_px,
-                                                 format.format.item_height_px);
-
-        preview_item_info default_info;
-        default_info.empty = true;
-        default_info.offset_msecs = 0;
-        map->items_info = std::vector<preview_item_info>{format.format.items, default_info};
+        auto [loaded_map, items_info] = LoadMapHandler(map_start_ut_msecs, format.format);
+        if (loaded_map != nullptr) {
+            std::cout << "map loaded from file " << format.format.item_duration_msecs << std::endl;
+            map->map = loaded_map;
+            map->items_info = items_info;
+            for (auto&& item_info : items_info) {
+                if (!item_info.empty) {
+                    ++map->item_counter;
+                }
+            }
+        } else {
+            map->map = std::make_shared<preview_map>(format.format.rows,
+                                                     format.format.cols,
+                                                     format.format.item_width_px,
+                                                     format.format.item_height_px);
+            preview_item_info default_info;
+            default_info.empty = true;
+            default_info.offset_msecs = 0;
+            map->items_info = std::vector<preview_item_info>{format.format.items, default_info};
+        }
 
         format.maps.insert({map_number, map});
     }

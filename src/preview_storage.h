@@ -58,6 +58,7 @@ private:
     std::thread _garbage_thread;
 
     std::atomic<size_t> _force_released_maps_count = 0;
+    std::atomic<size_t> _load_from_disk_maps_count = 0;
 };
 
 #endif // PREVIEW_STORAGE_H
