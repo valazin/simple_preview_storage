@@ -39,8 +39,6 @@ private:
     const size_t _item_size = 0;
     const size_t _map_size = 0;
 
-    size_t _added_number_of_previews = 0;
-
     char* _buff = nullptr;
     bool _buff_was_allocated = false;
 };

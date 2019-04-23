@@ -5,11 +5,21 @@
 #include "preview_map_format.h"
 
 preview_storage::preview_storage(const std::string &dir_path,
-                                 int64_t map_flush_duration_msecs) noexcept :
+                                 int64_t map_flush_duration_secs,
+                                 int64_t map_release_timeout_secs) noexcept :
     _work_dir_path(dir_path),
-    _map_flush_duration_msecs(map_flush_duration_msecs)
+    _map_flush_duration_secs(map_flush_duration_secs),
+    _map_release_timeout_secs(map_release_timeout_secs)
 {
     _repository = std::make_shared<preview_map_repository>(dir_path);
+}
+
+preview_storage::~preview_storage()
+{
+    _is_running = false;
+    if (_garbage_thread.joinable()) {
+        _garbage_thread.join();
+    }
 }
 
 bool preview_storage::add_preview(const std::string& id,
@@ -20,7 +30,7 @@ bool preview_storage::add_preview(const std::string& id,
                                   const char *data,
                                   size_t data_size) noexcept
 {
-    std::shared_ptr<preview_map_builder> builder;
+    std::shared_ptr<private_builder> builder;
 
     auto search = _builders.find(id);
     if (search != _builders.end()) {
@@ -34,11 +44,12 @@ bool preview_storage::add_preview(const std::string& id,
             sub_1hour
         };
 
-        builder = std::make_shared<preview_map_builder>(main_10sec,
-                                                        sub_formats,
-                                                        _map_flush_duration_msecs);
+        builder = std::make_shared<private_builder>();
+        builder->builder = std::make_unique<preview_map_builder>(main_10sec,
+                                                                 sub_formats,
+                                                                 _map_flush_duration_secs * 1000);
 
-        builder->SaveMapHandler = [id, this](
+        builder->builder->SaveMapHandler = [id, this](
                 int64_t start_ut_msecs,
                 const preview_map_format& format,
                 std::shared_ptr<preview_map> map,
@@ -46,7 +57,7 @@ bool preview_storage::add_preview(const std::string& id,
             _repository->save(id, start_ut_msecs, format, map, items_info);
         };
 
-        builder->LoadMapHandler = [id, this] (
+        builder->builder->LoadMapHandler = [id, this] (
                 int64_t start_ut_msecs,
                 const preview_map_format& format) -> std::tuple<std::shared_ptr<preview_map>, std::vector<preview_item_info>> {
             auto [map, items_info, error] = _repository->load(id, start_ut_msecs, format);
@@ -56,16 +67,58 @@ bool preview_storage::add_preview(const std::string& id,
             return {nullptr, {}};
         };
 
+        _builders_mutex.lock();
         _builders.insert({id, builder});
+        _builders_mutex.unlock();
     }
 
-    builder->add_preview(start_ut_msecs,
-                         duration_msecs,
-                         width_px,
-                         height_px,
-                         data,
-                         data_size);
+    builder->mutex.lock();
+    builder->builder->add_preview(start_ut_msecs,
+                                  duration_msecs,
+                                  width_px,
+                                  height_px,
+                                  data,
+                                  data_size);
+    builder->mutex.unlock();
 
     // TODO: res
     return true;
+}
+
+void preview_storage::start()
+{
+    _is_running = true;
+    _garbage_thread = std::thread(&preview_storage::carbage_loop, this);
+}
+
+void preview_storage::carbage_loop() noexcept
+{
+    while (_is_running) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
+        std::cout << "start carbage" << std::endl;
+
+        size_t removed_maps = 0;
+
+        auto i = _builders.begin();
+        while (i != _builders.end()) {
+            i->second->mutex.lock();
+            auto [count, error] = i->second->builder->release_maps(_map_release_timeout_secs * 1000);
+            i->second->mutex.unlock();
+
+            if (error == preview_map_builder::error_type::none_error) {
+                removed_maps += count;
+            }
+
+            if (i->second->builder->empty()) {
+                _builders_mutex.lock();
+                _builders.erase(i);
+                _builders_mutex.unlock();
+            } else {
+                ++i;
+            }
+        }
+
+        std::cout << "stop carbage: removed " << removed_maps << " maps" << std::endl;
+    }
 }

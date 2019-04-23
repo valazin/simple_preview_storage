@@ -41,11 +41,19 @@ public:
                            const char* data,
                            size_t data_size) noexcept;
 
+    bool empty() const noexcept;
+
+    std::tuple<size_t, error_type>
+    release_maps(int64_t unmodified_secs) noexcept;
+
 private:
     struct private_map
     {
         size_t item_counter = 0;
         size_t flush_counter = 0;
+        int64_t last_modyfied = 0;
+        int64_t start_ut_msecs = 0;
+        bool has_unsave_changes = false;
         std::shared_ptr<preview_map> map;
         std::vector<preview_item_info> items_info;
     };
@@ -61,6 +69,11 @@ private:
                 const char* data,
                 size_t data_size,
                 private_format& format) noexcept;
+
+    inline bool map_is_builded(std::shared_ptr<private_map> map,
+                               const private_format& format) const noexcept;
+    inline bool map_is_ready_to_flush(std::shared_ptr<private_map> map,
+                                      const private_format& format) const noexcept;
 
 private:
     const int64_t  _flush_duration_msecs = 0;

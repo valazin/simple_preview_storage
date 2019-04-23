@@ -35,15 +35,26 @@ env_settings::get_preview_storage_settings() const
     }
     result.path = std::string(cstr_path);
 
-    const char* cstr_flush_duration = std::getenv("MAP_FLUSH_DURATION_MSECS");
+    const char* cstr_flush_duration = std::getenv("MAP_FLUSH_DURATION_SECS");
     if (cstr_flush_duration == nullptr) {
         return {result, false};
     }
-    auto [flush_duration, is_ok] = cstr_to_int<int64_t>(cstr_flush_duration);
-    if (!is_ok) {
+
+    if (auto [flush_duration, is_ok] = cstr_to_int<int64_t>(cstr_flush_duration); is_ok) {
+        result.map_flush_duration_secs = static_cast<int64_t>(flush_duration);
+    } else {
         return {result, false};
     }
-    result.map_flush_duration_msecs = static_cast<int64_t>(flush_duration);
+
+    const char* cstr_release_timeout = std::getenv("MAP_RELEASE_TIMEOUT_SECS");
+    if (cstr_release_timeout == nullptr) {
+        return {result, false};
+    }
+    if (auto [release_timeout, is_ok] = cstr_to_int<int64_t>(cstr_release_timeout); is_ok) {
+        result.map_release_timeout_secs = release_timeout;
+    } else {
+        return {result, false};
+    }
 
     return {result, true};
 }

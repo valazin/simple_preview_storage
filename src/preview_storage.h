@@ -4,6 +4,9 @@
 #include <cstdint>
 #include <vector>
 #include <memory>
+#include <mutex>
+#include <atomic>
+#include <thread>
 #include <unordered_map>
 
 #include "preview_map.h"
@@ -14,7 +17,9 @@ class preview_storage
 {
 public:
     preview_storage(const std::string& dir_path,
-                    int64_t map_flush_duration_msecs) noexcept;
+                    int64_t map_flush_duration_secs,
+                    int64_t map_release_timeout_secs) noexcept;
+    ~preview_storage();
 
     bool add_preview(const std::string& id,
                      int64_t start_ut_msecs,
@@ -24,11 +29,29 @@ public:
                      const char* data,
                      size_t data_size) noexcept;
 
+    void start();
+
+private:
+    struct private_builder
+    {
+        std::mutex mutex;
+        std::unique_ptr<preview_map_builder> builder;
+    };
+
+private:
+    void carbage_loop() noexcept;
+
 private:
     const std::string _work_dir_path;
-    const int64_t _map_flush_duration_msecs = 0;
+    const int64_t _map_flush_duration_secs = 0;
+    const int64_t _map_release_timeout_secs = 0;
+
+    std::atomic<bool> _is_running = false;
+    std::thread _garbage_thread;
+
     std::shared_ptr<preview_map_repository> _repository;
-    std::unordered_map<std::string, std::shared_ptr<preview_map_builder>> _builders;
+    std::mutex _builders_mutex;
+    std::unordered_map<std::string, std::shared_ptr<private_builder>> _builders;
 };
 
 #endif // PREVIEW_STORAGE_H

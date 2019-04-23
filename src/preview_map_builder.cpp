@@ -5,6 +5,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/imgcodecs.hpp>
 
+#include "utility/datetime.h"
+
 preview_map_builder::preview_map_builder(const preview_map_format& main_format,
                                          const std::vector<preview_map_format>& sub_formats,
                                          int64_t flush_duration_msecs) noexcept :
@@ -59,7 +61,7 @@ preview_map_builder::add_preview(int64_t start_ut_msecs,
 
     const size_t items = static_cast<size_t>(start_ut_msecs
                                              / main_format.item_duration_msecs);
-    for (auto& sub_format : _sub_formats) {
+    for (auto&& sub_format : _sub_formats) {
         size_t ratio = static_cast<size_t>(sub_format.format.item_duration_msecs
                                            / main_format.item_duration_msecs);
         if (items % ratio != 0) {
@@ -93,6 +95,60 @@ preview_map_builder::add_preview(int64_t start_ut_msecs,
     return error_type::none_error;
 }
 
+bool preview_map_builder::empty() const noexcept
+{
+    if (_main_format.maps.empty()) {
+        for (auto&& sub_format : _sub_formats) {
+            if (!sub_format.maps.empty()) {
+                return false;
+            }
+        }
+        return true;
+    } else {
+        return false;
+    }
+}
+
+std::tuple<size_t, preview_map_builder::error_type>
+preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
+{
+    size_t res = 0;
+
+    const int64_t now = datetime::unix_timestamp();
+
+    auto release = [this, now, unmodified_secs] (private_format& format) -> size_t {
+        size_t res = 0;
+
+        auto i = format.maps.begin();
+        while (i != format.maps.end()) {
+            auto map = i->second;
+            if (now - map->last_modyfied >= unmodified_secs) {
+                if (map->has_unsave_changes) {
+                    SaveMapHandler(map->start_ut_msecs,
+                                   format.format,
+                                   map->map,
+                                   map->items_info);
+                }
+                format.maps.erase(i);
+                ++res;
+                i = format.maps.begin();
+
+            } else {
+                ++i;
+            }
+        }
+
+        return res;
+    };
+
+    res += release(_main_format);
+    for (auto&& sub_format : _sub_formats) {
+        res += release(sub_format);
+    }
+
+    return {res, error_type::none_error};
+}
+
 void preview_map_builder::insert(int64_t start_ut_msecs,
                                  const char* data,
                                  size_t data_size,
@@ -124,6 +180,8 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         map = search->second;
     } else {
         map = std::make_shared<private_map>();
+        map->start_ut_msecs = static_cast<int64_t>((items - item_number))
+                * format.format.item_duration_msecs;
 
         map->map = std::make_shared<preview_map>(format.format.rows,
                                                  format.format.cols,
@@ -138,6 +196,9 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         format.maps.insert({map_number, map});
     }
 
+    // TODO: error while removing
+//    map->last_modyfied = datetime::unix_timestamp();
+
     preview_item_info& item_info = map->items_info[item_number];
 
     if (item_info.empty || abs(item_info.offset_msecs) > abs(item_offset_msecs)) {
@@ -147,34 +208,49 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
             ++map->item_counter;
 
-            const int64_t current_map_duration_msecs =
-                    static_cast<int64_t>(map->item_counter) * format.format.item_duration_msecs;
+            const bool is_builded = map_is_builded(map, format);
+            const bool is_ready_to_flush = map_is_ready_to_flush(map, format);
+            const bool is_ready_to_save = is_builded || is_ready_to_flush;
 
-            bool mapIsBuilded = map->item_counter >= format.format.items;
-            bool mapIsReadyToFlush = false;
-            if (current_map_duration_msecs/_flush_duration_msecs
-                    > static_cast<int64_t>(map->flush_counter)) {
-                mapIsReadyToFlush = true;
-            }
-            bool mapIsReadyToSave = mapIsBuilded || mapIsReadyToFlush;
-
-            if (mapIsReadyToSave && SaveMapHandler) {
-                int64_t map_start_ut_msecs = static_cast<int64_t>(
-                            (items - item_number)) * format.format.item_duration_msecs;
-
-                SaveMapHandler(map_start_ut_msecs,
+            if (is_ready_to_save && SaveMapHandler) {
+                SaveMapHandler(map->start_ut_msecs,
                                format.format,
                                map->map,
                                map->items_info);
 
-                ++map->flush_counter;
-
-                if (mapIsBuilded) {
+                if (!is_builded) {
+                    ++map->flush_counter;
+                    map->has_unsave_changes = false;
+                } else {
                     format.maps.erase(search);
                 }
+            } else {
+                map->has_unsave_changes = true;
             }
         }
     }
 
     // TODO: return result
+}
+
+bool preview_map_builder::map_is_builded(std::shared_ptr<private_map> map,
+                                         const private_format &format) const noexcept
+{
+    return map->item_counter >= format.format.items;
+}
+
+bool preview_map_builder::map_is_ready_to_flush(std::shared_ptr<private_map> map,
+                                                const private_format &format) const noexcept
+{
+    const int64_t current_map_duration_msecs =
+            static_cast<int64_t>(map->item_counter)
+            * format.format.item_duration_msecs;
+
+    bool res = false;
+    if (current_map_duration_msecs/_flush_duration_msecs
+            > static_cast<int64_t>(map->flush_counter)) {
+        res = true;
+    }
+
+    return res;
 }

@@ -15,7 +15,8 @@ struct http_server_settings
 struct preview_storage_settings
 {
     std::string path;
-    int64_t map_flush_duration_msecs;
+    int64_t map_flush_duration_secs = 0;
+    int64_t map_release_timeout_secs = 0;
 };
 
 class env_settings

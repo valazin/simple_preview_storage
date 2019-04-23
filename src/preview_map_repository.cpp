@@ -97,8 +97,12 @@ preview_map_repository::save_map_to_file(const std::shared_ptr<preview_map> &map
         cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 65
     };
 
-    // TODO: exeption?
-    bool res = cv::imencode(".jpg", in_mat, out_buff, params);
+    bool res = false;
+    try {
+        res = cv::imencode(".jpg", in_mat, out_buff, params);
+    } catch (const cv::Exception& exception) {
+        std::cerr << exception.what() << std::endl;
+    }
 
     if (res) {
         return save_to_file(out_buff.data(),out_buff.size(), file_path);

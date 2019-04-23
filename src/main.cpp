@@ -20,7 +20,12 @@ void insert_test1(std::shared_ptr<preview_storage> storage)
     const int color_step = 255 / 30;
 
     // TODO: test without shared ptr
-    for (int i=0; i<30000; ++i) {
+    for (int i=0; i<29; ++i) {
+//        if (i % 6 == 0) {
+//            start_ut_msecs += duration_msecs;
+//            continue;
+//        }
+
         char* data = new char[preview_size];
         memset(data, color_step*(i+1), preview_size);
 
@@ -55,12 +60,16 @@ int main(int argc, char* argv[])
     }
 
     auto storage = std::make_shared<preview_storage>(storage_conf.path,
-                                                     storage_conf.map_flush_duration_msecs);
+                                                     storage_conf.map_flush_duration_secs,
+                                                     storage_conf.map_release_timeout_secs);
+    storage->start();
 
     api a(storage);
     if (!a.start(http_conf.host, http_conf.port)) {
         return -1;
     }
+
+    insert_test1(storage);
 
     while (true) {
         // TODO: flush none full maps if timeout
