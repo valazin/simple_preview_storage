@@ -17,7 +17,7 @@ class preview_storage
 {
 public:
     preview_storage(const std::string& dir_path,
-                    int64_t map_flush_duration_secs,
+                    int64_t map_flush_timeout_secs,
                     int64_t map_release_timeout_secs) noexcept;
     ~preview_storage();
 
@@ -43,7 +43,7 @@ private:
 
 private:
     const std::string _work_dir_path;
-    const int64_t _map_flush_duration_secs = 0;
+    const int64_t _map_flush_timeout_secs = 0;
     const int64_t _map_release_timeout_secs = 0;
 
     std::atomic<bool> _is_running = false;

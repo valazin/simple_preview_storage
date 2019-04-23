@@ -5,10 +5,10 @@
 #include "preview_map_format.h"
 
 preview_storage::preview_storage(const std::string &dir_path,
-                                 int64_t map_flush_duration_secs,
+                                 int64_t map_flush_timeout_secs,
                                  int64_t map_release_timeout_secs) noexcept :
     _work_dir_path(dir_path),
-    _map_flush_duration_secs(map_flush_duration_secs),
+    _map_flush_timeout_secs(map_flush_timeout_secs),
     _map_release_timeout_secs(map_release_timeout_secs)
 {
     _repository = std::make_shared<preview_map_repository>(dir_path);
@@ -47,7 +47,7 @@ bool preview_storage::add_preview(const std::string& id,
         builder = std::make_shared<private_builder>();
         builder->builder = std::make_unique<preview_map_builder>(main_10sec,
                                                                  sub_formats,
-                                                                 _map_flush_duration_secs * 1000);
+                                                                 _map_flush_timeout_secs * 1000);
 
         builder->builder->SaveMapHandler = [id, this](
                 int64_t start_ut_msecs,

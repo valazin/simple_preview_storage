@@ -13,8 +13,8 @@ struct date
 class datetime
 {
 public:
-    static int64_t unix_timestamp();
-    static date unix_timestamp_to_date(int64_t unix_timestamp);
+    static int64_t now_ut_msecs();
+    static date unix_timestamp_to_date(int64_t now_ut_msecs);
 };
 
 #endif // DATETIME_H

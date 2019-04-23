@@ -84,8 +84,8 @@ preview_map_repository::load(const std::string &id,
 }
 
 preview_map_repository::error_type
-preview_map_repository::save_map_to_file(const std::shared_ptr<preview_map> &map,
-                                         const std::string &file_path) noexcept
+preview_map_repository::save_map_to_file(const std::shared_ptr<preview_map>& map,
+                                         const std::string& file_path) noexcept
 {
     std::vector<uchar> out_buff(map->size(), 0);
     cv::Mat in_mat(static_cast<int>(map->height_px()),

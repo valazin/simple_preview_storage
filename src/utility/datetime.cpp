@@ -2,9 +2,9 @@
 
 #include <ctime>
 
-int64_t datetime::unix_timestamp()
+int64_t datetime::now_ut_msecs()
 {
-    return std::time(nullptr);
+    return std::time(nullptr) * 1000;
 }
 
 date datetime::unix_timestamp_to_date(int64_t unix_timestamp)

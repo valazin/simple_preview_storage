@@ -32,7 +32,7 @@ public:
 
     preview_map_builder(const preview_map_format& main_format,
                         const std::vector<preview_map_format>& sub_formats,
-                        int64_t flush_duration_msecs) noexcept;
+                        int64_t flush_timeout_msecs) noexcept;
 
     error_type add_preview(int64_t start_ut_msecs,
                            int64_t duration_msecs,
@@ -51,7 +51,7 @@ private:
     {
         size_t item_counter = 0;
         size_t flush_counter = 0;
-        int64_t last_modyfied = 0;
+        int64_t last_modyfied_ut = 0;
         int64_t start_ut_msecs = 0;
         bool has_unsave_changes = false;
         std::shared_ptr<preview_map> map;
@@ -72,11 +72,11 @@ private:
 
     inline bool map_is_builded(std::shared_ptr<private_map> map,
                                const private_format& format) const noexcept;
-    inline bool map_is_ready_to_flush(std::shared_ptr<private_map> map,
+    inline bool map_is_ready_to_flush_by_timeout(std::shared_ptr<private_map> map,
                                       const private_format& format) const noexcept;
 
 private:
-    const int64_t  _flush_duration_msecs = 0;
+    const int64_t  _flush_timeout_msecs = 0;
     private_format _main_format;
     std::vector<private_format> _sub_formats;
 };

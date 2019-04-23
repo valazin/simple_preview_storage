@@ -8,9 +8,9 @@
 #include "utility/datetime.h"
 
 preview_map_builder::preview_map_builder(const preview_map_format& main_format,
-                                         const std::vector<preview_map_format>& sub_formats,
-                                         int64_t flush_duration_msecs) noexcept :
-    _flush_duration_msecs(flush_duration_msecs),
+        const std::vector<preview_map_format>& sub_formats,
+        int64_t flush_timeout_msecs) noexcept :
+    _flush_timeout_msecs(flush_timeout_msecs),
     _main_format{main_format, {}}
 {
     // TODO: validate sub_formats
@@ -114,7 +114,7 @@ preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
 {
     size_t res = 0;
 
-    const int64_t now = datetime::unix_timestamp();
+    const int64_t now = datetime::now_ut_msecs();
 
     auto release = [this, now, unmodified_secs] (private_format& format) -> size_t {
         size_t res = 0;
@@ -122,7 +122,7 @@ preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
         auto i = format.maps.begin();
         while (i != format.maps.end()) {
             auto map = i->second;
-            if (now - map->last_modyfied >= unmodified_secs) {
+            if (now - map->last_modyfied_ut >= unmodified_secs) {
                 if (map->has_unsave_changes) {
                     SaveMapHandler(map->start_ut_msecs,
                                    format.format,
@@ -194,8 +194,7 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
         format.maps.insert({map_number, map});
     }
 
-    // TODO: error while removing
-//    map->last_modyfied = datetime::unix_timestamp();
+    map->last_modyfied_ut = datetime::now_ut_msecs();
 
     preview_item_info& item_info = map->items_info[item_number];
 
@@ -206,8 +205,10 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
             ++map->item_counter;
 
+            map->has_unsave_changes = true;
+
             const bool is_builded = map_is_builded(map, format);
-            const bool is_ready_to_flush = map_is_ready_to_flush(map, format);
+            const bool is_ready_to_flush = map_is_ready_to_flush_by_timeout(map, format);
             const bool is_ready_to_save = is_builded || is_ready_to_flush;
 
             if (is_ready_to_save && SaveMapHandler) {
@@ -216,14 +217,13 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                                map->map,
                                map->items_info);
 
+                map->has_unsave_changes = false;
+
                 if (!is_builded) {
                     ++map->flush_counter;
-                    map->has_unsave_changes = false;
                 } else {
                     format.maps.erase(search);
                 }
-            } else {
-                map->has_unsave_changes = true;
             }
         }
     }
@@ -231,21 +231,23 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
     // TODO: return result
 }
 
-bool preview_map_builder::map_is_builded(std::shared_ptr<private_map> map,
-                                         const private_format &format) const noexcept
+bool preview_map_builder::map_is_builded(
+        std::shared_ptr<private_map> map,
+        const private_format &format) const noexcept
 {
     return map->item_counter >= format.format.items;
 }
 
-bool preview_map_builder::map_is_ready_to_flush(std::shared_ptr<private_map> map,
-                                                const private_format &format) const noexcept
+bool preview_map_builder::map_is_ready_to_flush_by_timeout(
+        std::shared_ptr<private_map> map,
+        const private_format &format) const noexcept
 {
     const int64_t current_map_duration_msecs =
             static_cast<int64_t>(map->item_counter)
             * format.format.item_duration_msecs;
 
     bool res = false;
-    if (current_map_duration_msecs/_flush_duration_msecs
+    if (current_map_duration_msecs/_flush_timeout_msecs
             > static_cast<int64_t>(map->flush_counter)) {
         res = true;
     }

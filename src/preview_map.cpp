@@ -50,7 +50,11 @@ const char *preview_map::data() const noexcept
 
 size_t preview_map::size() const noexcept
 {
-    return _map_size;
+    if (_buff_was_allocated) {
+        return _map_size;
+    } else {
+        return 0;
+    }
 }
 
 size_t preview_map::width_px() const
