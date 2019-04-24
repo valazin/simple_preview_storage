@@ -19,6 +19,19 @@ std::vector<std::string> string_utils::split_string(const std::string &text,
 
 bool string_utils::string_is_number(const std::string& text) noexcept
 {
-    bool contains_only_number=text.find_first_not_of("0123456789") == std::string::npos;
+    std::string_view text_view(text);
+    if (text_view.empty()) {
+        return false;
+    }
+
+    if (text_view.front() == '-') {
+        if (text_view.size() >1 ) {
+            text_view.remove_prefix(1);
+        } else {
+            return false;
+        }
+    }
+
+    bool contains_only_number = text_view.find_first_not_of("0123456789") == std::string::npos;
     return contains_only_number;
 }

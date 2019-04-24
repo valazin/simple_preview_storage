@@ -156,6 +156,11 @@ preview_map_builder::release_maps(int64_t unmodified_secs) noexcept
     return {res, error_type::none_error};
 }
 
+std::string format_to_string(const preview_map_format& format)
+{
+    return "[" + std::to_string(format.item_duration_msecs) + "secs]";
+}
+
 void preview_map_builder::insert(int64_t start_ut_msecs,
                                  const char* data,
                                  size_t data_size,
@@ -166,20 +171,32 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                 start_ut_msecs / format.format.item_duration_msecs);
     size_t map_number = items / format.format.items;
     size_t item_number = items % format.format.items;
-    const int64_t map_start_ut_msecs = static_cast<int64_t>((items - item_number))
-            * format.format.item_duration_msecs;
 
     int64_t item_offset_msecs =
             start_ut_msecs % format.format.item_duration_msecs;
     if (item_offset_msecs > (format.format.item_duration_msecs / 2)) {
+        std::cout << "DEBUG: take next item" << std::endl;
         ++items;
         ++item_number;
         if (item_number + 1 > format.format.items) {
+            std::cout << "DEBUG: take next map" << std::endl;
             item_number = 0;
             ++map_number;
         }
         item_offset_msecs -= format.format.item_duration_msecs;
     }
+
+    const int64_t map_start_ut_msecs = static_cast<int64_t>((items - item_number))
+            * format.format.item_duration_msecs;
+
+    std::cout << "DEBUG: "
+              << format_to_string(format.format)
+              << " "
+              << map_start_ut_msecs
+              << " "
+              << map_number
+              << " "
+              << item_number << std::endl;
 
     std::shared_ptr<private_map> map;
     auto search = format.maps.find(map_number);
@@ -191,7 +208,8 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
         auto [loaded_map, items_info] = LoadMapHandler(map_start_ut_msecs, format.format);
         if (loaded_map != nullptr) {
-            std::cout << "map loaded from file " << format.format.item_duration_msecs << std::endl;
+            std::cout << "DEBUG: map loaded from file " << std::endl;
+
             map->map = loaded_map;
             map->items_info = items_info;
             for (auto&& item_info : items_info) {
@@ -210,7 +228,12 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
             map->items_info = std::vector<preview_item_info>{format.format.items, default_info};
         }
 
-        format.maps.insert({map_number, map});
+        auto [iter, is_ok] = format.maps.insert({map_number, map});
+        if (!is_ok) {
+            std::cerr << "couldn't insert to map";
+            return;
+        }
+        search = iter;
     }
 
     map->last_modyfied_ut = datetime::now_ut_msecs();
@@ -219,6 +242,14 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
 
     if (item_info.empty || abs(item_info.offset_msecs) > abs(item_offset_msecs)) {
         if (map->map->insert(item_number, data, data_size)) {
+            if (!item_info.empty) {
+                std::cout << "DEBUG: item offset changed from "
+                          << item_info.offset_msecs
+                          << " to "
+                          << item_offset_msecs
+                          << std::endl;
+            }
+
             item_info.empty = false;
             item_info.offset_msecs = item_offset_msecs;
 
@@ -239,12 +270,20 @@ void preview_map_builder::insert(int64_t start_ut_msecs,
                 map->has_unsave_changes = false;
 
                 if (!is_builded) {
+                    std::cout << "DEBUG: map was flushed" << std::endl;
                     ++map->flush_counter;
                 } else {
+                    std::cout << "DEBUG: map was released" << std::endl;
                     format.maps.erase(search);
                 }
             }
         }
+    } else {
+        std::cout << "DEBUG: ignore insert because existing offset "
+                  << item_info.offset_msecs
+                  << " < "
+                  << item_offset_msecs
+                  << std::endl;
     }
 
     // TODO: return result

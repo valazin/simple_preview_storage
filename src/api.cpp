@@ -68,7 +68,7 @@ http::response api::handle_request(std::shared_ptr<http::request> req) noexcept
     switch(cxt->method) {
     case method::post_preview: {
         // TODO: normal way to parse input data and return more verbose error
-        std::cerr << "post preview: "
+        std::cout << "post preview: "
                   << cxt->id << " "
                   << cxt->start_ut_msecs << " "
                   << cxt->duration_msecs << " "

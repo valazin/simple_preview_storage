@@ -17,7 +17,7 @@ preview_map_repository::preview_map_repository(const std::string& dir_path) noex
       _dir_path(dir_path)
 {
     if (!filesystem::create_path(dir_path)) {
-        std::cerr << "error create dir_path for preview_map_repository" << std::endl;
+        std::cerr << "couldn't create dir_path for preview_map_repository" << std::endl;
     }
 }
 
@@ -160,7 +160,7 @@ preview_map_repository::load_offsets_from_file(const std::string& file_path) noe
         } else if (s=="null") {
             result.push_back(preview_item_info{true, 0});
         } else {
-            std::cerr << "item is not valid. bad data" << std::endl;
+            std::cerr << "item is not valid " << s << std::endl;
             result.push_back(preview_item_info{true, 0});
         }
     }
@@ -237,7 +237,7 @@ preview_map_repository::load_from_file(const std::string& file_path) noexcept
 {
     std::ifstream file(file_path, std::ios::in | std::ios::binary | std::ios::ate);
     if (!file.is_open()) {
-        std::cerr << "open file to read: " << file_path << std::endl;
+        std::cerr << "couldn't open file to read: " << file_path << std::endl;
         return {nullptr, 0, error_type::file_load_error};
     }
 
